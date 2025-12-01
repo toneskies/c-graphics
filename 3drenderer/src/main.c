@@ -128,6 +128,12 @@ void draw_grid(uint32_t color, int cell_size) {
     }
 }
 
+// exercise 2
+// TODO: Implement draw_rect
+// void draw_rect(int x_pos, int y_pos, int width, int height) {
+//     int start_idx_x = color_buffer[] 
+// }
+
 
 void render(void) {
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
@@ -138,6 +144,12 @@ void render(void) {
     // that shows a line every row or column of pixels that is a multiple
     // of 10.
     draw_grid(0xFF333333, 10);
+
+    // exercise 2
+    // TODO: Implement draw_rect
+    // Create a function called draw_rect() that renders a rectangle
+    // on the screen.
+    draw_rect(100, 100, 100, 100);
 
     render_color_buffer();
     clear_color_buffer(0xFF000000);
