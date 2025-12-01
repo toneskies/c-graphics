@@ -25,8 +25,8 @@ bool initialize_window(void) {
     SDL_DisplayMode display_mode;
     SDL_GetCurrentDisplayMode(0, &display_mode);
 
-    window_width = display_mode.w;
-    window_height = display_mode.h;
+    window_width = 800; // display_mode.w;
+    window_height = 600; //display_mode.h;
 
     // Created a SDL Window
     window = SDL_CreateWindow(
@@ -49,7 +49,7 @@ bool initialize_window(void) {
         -1,
         0
     );
-    SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+    // SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
 
     if(!renderer) {
         fprintf(stderr, "Error creating SDL renderer.\n");
@@ -97,7 +97,7 @@ void process_input(void) {
         }
 }
 void update(void) {
-    // TODO:
+    // TODO: 
 }
 
 void render_color_buffer() {
@@ -111,13 +111,27 @@ void render_color_buffer() {
 }
 
 void clear_color_buffer(uint32_t color) {
-    // for (size_t y = 0; y < window_height; y++) {
-    //     for(size_t x = 0; x < window_width; x++) {
+    // for (int y = 0; y < window_height; y++) {
+    //     for(int x = 0; x < window_width; x++) {
     //         color_buffer[(window_width * y) + x] = color;
     //     }
     // }
-    for (size_t i = 0, buffer_size = window_height * window_width; i < buffer_size; i++) {
+    for (int i = 0, buffer_size = window_height * window_width; i < buffer_size; i++) {
         *(color_buffer + i) = color;
+    }
+}
+
+// exercise 1
+void draw_grid(uint32_t color, int cell_size) {
+    if(cell_size % 10 != 0) cell_size = 100;
+
+    for (int y = 0; y < window_height; y++) {
+        for (int x = 0; x < window_width; x++) {
+            if (y % cell_size == 0 || x % cell_size == 0 ) {
+                int idx = (window_width * y) + x;
+                color_buffer[idx] = color;
+            }
+        }
     }
 }
 
@@ -125,9 +139,14 @@ void render(void) {
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
     SDL_RenderClear(renderer);
 
-    render_color_buffer();
+    // exercise 1
+    // Create a function called draw_grid() that renders a background grid
+    // that shows a line every row or column of pixels that is a multiple
+    // of 10.
+    draw_grid(0xFFFFFFFF, 33);
 
-    clear_color_buffer(0xFFFFFF00);
+    render_color_buffer();
+    clear_color_buffer(0xFF000000);
 
     SDL_RenderPresent(renderer);
 }
