@@ -111,13 +111,8 @@ void render_color_buffer() {
 }
 
 void clear_color_buffer(uint32_t color) {
-    // for (int y = 0; y < window_height; y++) {
-    //     for(int x = 0; x < window_width; x++) {
-    //         color_buffer[(window_width * y) + x] = color;
-    //     }
-    // }
     for (int i = 0, buffer_size = window_height * window_width; i < buffer_size; i++) {
-        *(color_buffer + i) = color;
+        color_buffer[i] = color;
     }
 }
 
@@ -125,15 +120,14 @@ void clear_color_buffer(uint32_t color) {
 void draw_grid(uint32_t color, int cell_size) {
     if(cell_size % 10 != 0) cell_size = 100;
 
-    for (int y = 0; y < window_height; y++) {
-        for (int x = 0; x < window_width; x++) {
-            if (y % cell_size == 0 || x % cell_size == 0 ) {
+    for (int y = 0; y < window_height; y += cell_size) {
+        for (int x = 0; x < window_width; x += cell_size) {
                 int idx = (window_width * y) + x;
                 color_buffer[idx] = color;
-            }
         }
     }
 }
+
 
 void render(void) {
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
@@ -143,7 +137,7 @@ void render(void) {
     // Create a function called draw_grid() that renders a background grid
     // that shows a line every row or column of pixels that is a multiple
     // of 10.
-    draw_grid(0xFFFFFFFF, 33);
+    draw_grid(0xFF333333, 10);
 
     render_color_buffer();
     clear_color_buffer(0xFF000000);
