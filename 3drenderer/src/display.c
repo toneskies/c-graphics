@@ -1,0 +1,102 @@
+#include "display.h"
+#include <stdio.h>
+
+SDL_Window* window = NULL;
+SDL_Renderer* renderer = NULL;
+uint32_t* color_buffer = NULL;
+SDL_Texture* color_buffer_texture = NULL;
+int window_height = 600;
+int window_width = 800;
+
+
+bool initialize_window(void) { 
+    if(SDL_Init(SDL_INIT_EVERYTHING) != 0) {
+        fprintf(stderr, "Error initializing SDL.\n");
+        return false;
+    }
+
+    // Use SDL to query what is the fullscreen max. width and height
+    SDL_DisplayMode display_mode;
+    SDL_GetCurrentDisplayMode(0, &display_mode);
+
+    window_width = 800; // display_mode.w;
+    window_height = 600; //display_mode.h;
+
+    // Created a SDL Window
+    window = SDL_CreateWindow(
+        NULL,
+        SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED,
+        window_width,
+        window_height,
+        SDL_WINDOW_BORDERLESS
+     );
+
+     if(!window) {
+        fprintf(stderr, "Error creating SDL window.\n");
+        return false;
+     }
+
+    // Create a SDL renderer
+    renderer = SDL_CreateRenderer(
+        window,
+        -1,
+        0
+    );
+    // SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+
+    if(!renderer) {
+        fprintf(stderr, "Error creating SDL renderer.\n");
+        return false;
+    }
+    
+    return true;
+}
+
+void render_color_buffer() {
+    SDL_UpdateTexture(
+        color_buffer_texture,
+        NULL,
+        color_buffer,
+        (int)(window_width * sizeof(uint32_t))
+    );
+    SDL_RenderCopy(renderer, color_buffer_texture, NULL, NULL);
+}
+
+void clear_color_buffer(uint32_t color) {
+    for (int i = 0, buffer_size = window_height * window_width; i < buffer_size; i++) {
+        color_buffer[i] = color;
+    }
+}
+
+// exercise 1
+void draw_grid(uint32_t color, int cell_size) {
+    if(cell_size % 10 != 0) cell_size = 100;
+
+    for (int y = 0; y < window_height; y += cell_size) {
+        for (int x = 0; x < window_width; x += cell_size) {
+                int idx = (window_width * y) + x;
+                color_buffer[idx] = color;
+        }
+    }
+}
+
+// exercise 2
+// TODO: Implement draw_rect
+void draw_rect(int x_pos, int y_pos, int width, int height, uint32_t color) {
+    for (int y = y_pos; y < (height + y_pos); y++) {
+        for (int x = x_pos; x < (width + x_pos); x++) {
+            color_buffer[(window_width * y) + x] = color;
+        }
+    }
+}
+
+
+
+void destroy_window(void) {
+    free(color_buffer);
+    SDL_DestroyTexture(color_buffer_texture);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+}
