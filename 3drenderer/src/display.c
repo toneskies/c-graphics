@@ -69,14 +69,17 @@ void draw_grid(uint32_t color, int cell_size) {
 }
 
 void draw_pixel(int x_pos, int y_pos, uint32_t color) {
-    if (x_pos < window_width && y_pos < window_height)
+    if (x_pos >= 0 && x_pos < window_width && y_pos >= 0 &&
+        y_pos < window_height)
         color_buffer[(window_width * y_pos) + x_pos] = color;
 }
 
 void draw_rect(int x_pos, int y_pos, int width, int height, uint32_t color) {
-    for (int y = y_pos; y < (height + y_pos); y++) {
-        for (int x = x_pos; x < (width + x_pos); x++) {
-            color_buffer[(window_width * y) + x] = color;
+    for (int i = 0; i < width; i++) {
+        for (int j = 0; j < height; j++) {
+            int current_x = x_pos + i;
+            int current_y = y_pos + j;
+            draw_pixel(current_x, current_y, color);
         }
     }
 }
