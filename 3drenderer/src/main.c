@@ -74,16 +74,26 @@ void render(void) {
 }
 
 int main(void) {
+
+    // 1. initialize window
     is_running = initialize_window();
 
+    // 2. set up buffer for game
     setup();
 
+    // 3. game loop
     while(is_running) {
+        // 3a. process user input
         process_input();
+
+        // 3b. update timestep
         update();
+
+        //3c. render data to screen
         render();
     }
 
+    // 4. collect garbage
     destroy_window();
 
     return 0;
