@@ -130,9 +130,13 @@ void draw_grid(uint32_t color, int cell_size) {
 
 // exercise 2
 // TODO: Implement draw_rect
-// void draw_rect(int x_pos, int y_pos, int width, int height) {
-//     int start_idx_x = color_buffer[] 
-// }
+void draw_rect(int x_pos, int y_pos, int width, int height, uint32_t color) {
+    for (int y = y_pos; y < (height + y_pos); y++) {
+        for (int x = x_pos; x < (width + x_pos); x++) {
+            color_buffer[(window_width * y) + x] = color;
+        }
+    }
+}
 
 
 void render(void) {
@@ -149,7 +153,7 @@ void render(void) {
     // TODO: Implement draw_rect
     // Create a function called draw_rect() that renders a rectangle
     // on the screen.
-    draw_rect(100, 100, 100, 100);
+    draw_rect(100, 100, 100, 100, 0xFFFFC0CB);
 
     render_color_buffer();
     clear_color_buffer(0xFF000000);
