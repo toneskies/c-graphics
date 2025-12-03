@@ -149,8 +149,8 @@ void render(void) {
     draw_grid(0xFF333333, 10);
 
     // exercise 2
-    draw_rect(100, 100, 100, 100, 0xFFFFC0CB);
-    draw_pixel(100, 100, 0xFFFF0000);
+    // draw_rect(100, 100, 100, 100, 0xFFFFC0CB);
+    // draw_pixel(100, 100, 0xFFFF0000);
 
     render_color_buffer();
     // clear_color_buffer(0xFF000000);
