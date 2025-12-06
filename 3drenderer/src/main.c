@@ -27,7 +27,7 @@ void draw_filled_circle(int center_x, int center_y, int radius,
         for (int x = center_x - radius; x <= center_x + radius; x++) {
             int dx = x - center_x;
             int dy = y - center_y;
-
+u
             if ((dx * dx + dy * dy) <= (radius * radius)) {
                 if (x >= 0 && x < window_width && y >= 0 && y < window_height) {
                     draw_pixel(x, y, color);
