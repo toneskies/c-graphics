@@ -19,6 +19,7 @@ bool initialize_window(void);
 void draw_grid(uint32_t color, int cell_size);
 void draw_pixel(int x_pos, int y_pos, uint32_t color);
 void draw_rect(int x_pos, int y_pos, int width, int height, uint32_t color);
+void draw_line(int x0, int y0, int x1, int y1, uint32_t color);
 void render_color_buffer();
 void clear_color_buffer(uint32_t color);
 void destroy_window(void);
