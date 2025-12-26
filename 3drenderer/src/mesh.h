@@ -19,4 +19,6 @@ typedef struct {
 
 extern mesh_t mesh;
 
+void load_cube_mesh_data(void);
+
 #endif

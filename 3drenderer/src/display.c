@@ -115,7 +115,6 @@ void draw_triangle(int x0, int y0, int x1, int y1, int x2, int y2,
 }
 
 void destroy_window(void) {
-    free(color_buffer);
     SDL_DestroyTexture(color_buffer_texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

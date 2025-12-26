@@ -34,6 +34,8 @@ void setup(void) {
     color_buffer_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
                                              SDL_TEXTUREACCESS_STREAMING,
                                              window_width, window_height);
+
+    load_cube_mesh_data();
 }
 
 void process_input(void) {
@@ -77,13 +79,14 @@ void update(void) {
     mesh.rotation.z += 0.01;
 
     // loop all triangle faces of our mesh
-    for (int i = 0; i < N_MESH_FACES; i++) {
-        face_t mesh_face = mesh_faces[i];
+    int num_faces = array_length(mesh.faces);
+    for (int i = 0; i < num_faces; i++) {
+        face_t mesh_face = mesh.faces[i];
 
         vec3_t face_vertices[3];
-        face_vertices[0] = mesh_vertices[mesh_face.a - 1];
-        face_vertices[1] = mesh_vertices[mesh_face.b - 1];
-        face_vertices[2] = mesh_vertices[mesh_face.c - 1];
+        face_vertices[0] = mesh.vertices[mesh_face.a - 1];
+        face_vertices[1] = mesh.vertices[mesh_face.b - 1];
+        face_vertices[2] = mesh.vertices[mesh_face.c - 1];
 
         triangle_t projected_triangle;
 
@@ -143,6 +146,14 @@ void render(void) {
     SDL_RenderPresent(renderer);
 }
 
+/// @brief free memory that was dynamically allocated by the program
+/// @param  none
+void free_resources(void) {
+    free(color_buffer);
+    array_free(mesh.faces);
+    array_free(mesh.vertices);
+}
+
 int main(void) {
     // 1. initialize window
     is_running = initialize_window();
@@ -164,6 +175,7 @@ int main(void) {
 
     // 4. collect garbage
     destroy_window();
+    free_resources();
 
     return 0;
 }
