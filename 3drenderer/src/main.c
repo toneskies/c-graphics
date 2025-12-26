@@ -3,19 +3,15 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "array.h"
 #include "display.h"
 #include "mesh.h"
 #include "triangle.h"
 #include "vector.h"
 
-triangle_t triangles_to_render[N_MESH_FACES];
-
-/*
- * @brief Declare an array of vectors/points
- */
+triangle_t* triangles_to_render = NULL;
 
 vec3_t camera_position = {.x = 0, .y = 0, .z = -5};
-vec3_t cube_rotation = {.x = 0, .y = 0, .z = 0};
 
 float fov_factor = 640;
 
@@ -28,9 +24,10 @@ void setup(void) {
         (uint32_t*)malloc(window_width * window_height * sizeof(uint32_t));
 
     if (!color_buffer) {
-        /* if it's a null pointer, fix this!*/
+        printf("Bruh your color buffer is null...\n");
     } else {
         /* success, continue with your code.*/
+        printf("Your color buffer is aight.\n");
     }
 
     // create a buffer texture for SDL that is used to hold the color buffer
@@ -65,6 +62,9 @@ vec2_t project(vec3_t point) {
 void update(void) {
     previous_frame_time = SDL_GetTicks();
 
+    // initialize array of triangles to render
+    triangles_to_render = NULL;
+
     int time_to_wait =
         FRAME_TARGET_TIME - (SDL_GetTicks() - previous_frame_time);
 
@@ -72,9 +72,9 @@ void update(void) {
         SDL_Delay(time_to_wait);
     }
 
-    cube_rotation.y += 0.01;
-    cube_rotation.x += 0.01;
-    cube_rotation.z += 0.01;
+    mesh.rotation.y += 0.01;
+    mesh.rotation.x += 0.01;
+    mesh.rotation.z += 0.01;
 
     // loop all triangle faces of our mesh
     for (int i = 0; i < N_MESH_FACES; i++) {
@@ -92,11 +92,11 @@ void update(void) {
             vec3_t transformed_vertex = face_vertices[j];
 
             transformed_vertex =
-                vec3_rotate_x(transformed_vertex, cube_rotation.x);
+                vec3_rotate_x(transformed_vertex, mesh.rotation.x);
             transformed_vertex =
-                vec3_rotate_y(transformed_vertex, cube_rotation.y);
+                vec3_rotate_y(transformed_vertex, mesh.rotation.y);
             transformed_vertex =
-                vec3_rotate_z(transformed_vertex, cube_rotation.z);
+                vec3_rotate_z(transformed_vertex, mesh.rotation.z);
 
             // translate verted away from the camera in z
             transformed_vertex.z -= camera_position.z;
@@ -112,7 +112,8 @@ void update(void) {
             projected_triangle.points[j] = projected_point;
         }
 
-        triangles_to_render[i] = projected_triangle;
+        // triangles_to_render[i] = projected_triangle;
+        array_push(triangles_to_render, projected_triangle);
     }
 }
 
@@ -120,8 +121,9 @@ void render(void) {
     // exercise 1
     draw_grid(0xFF333333, 10);
 
+    int num_triangles = array_length(triangles_to_render);
     // Loop all projected triangles and render them
-    for (int i = 0; i < N_MESH_FACES; i++) {
+    for (int i = 0; i < num_triangles; i++) {
         triangle_t triangle = triangles_to_render[i];
         draw_rect(triangle.points[0].x, triangle.points[0].y, 3, 3, 0xFFFFFF00);
         draw_rect(triangle.points[1].x, triangle.points[1].y, 3, 3, 0xFFFFFF00);
@@ -131,6 +133,9 @@ void render(void) {
                       triangle.points[1].x, triangle.points[1].y,
                       triangle.points[2].x, triangle.points[2].y, 0xFFFFFF00);
     }
+
+    // clear the array of triangles to render every frame loop
+    array_free(triangles_to_render);
 
     render_color_buffer();
     clear_color_buffer(0xFF000000);
