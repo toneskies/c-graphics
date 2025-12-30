@@ -33,7 +33,7 @@ bool initialize_window(void) {
     }
 
     // Create a SDL renderer
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+    renderer = SDL_CreateRenderer(window, -1, 0);
     // SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
 
     if (!renderer) {

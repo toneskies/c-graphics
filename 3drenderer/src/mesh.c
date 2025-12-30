@@ -59,13 +59,13 @@ void load_obj_file_data(char* filename) {
 
     while (fgets(line, 1024, file)) {
         // Vertex Information
-        if ((strncmp(line, "v ", 2)) == 0) {
+        if (strncmp(line, "v ", 2) == 0) {
             vec3_t vertex;
             sscanf(line, "v %f %f %f", &vertex.x, &vertex.y, &vertex.z);
             array_push(mesh.vertices, vertex);
         }
         // Face Information
-        if ((strncmp(line, "f ", 2)) == 0) {
+        if (strncmp(line, "f ", 2) == 0) {
             int vertex_indices[3];
             int texture_indices[3];
             int normal_indices[3];

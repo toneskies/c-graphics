@@ -11,7 +11,7 @@
 
 triangle_t* triangles_to_render = NULL;
 
-vec3_t camera_position = {.x = 0, .y = 0, .z = 0};
+vec3_t camera_position = {0, 0, 0};
 
 float fov_factor = 640;
 
@@ -36,7 +36,7 @@ void setup(void) {
                                              window_width, window_height);
 
     // load_cube_mesh_data();
-    load_obj_file_data("./assets/f22.obj");
+    load_obj_file_data("./assets/cube05.obj");
 }
 
 void process_input(void) {
@@ -63,21 +63,23 @@ vec2_t project(vec3_t point) {
 }
 
 void update(void) {
+    // Wait some time until the reach the target frame time in milliseconds
+    int time_to_wait =
+        FRAME_TARGET_TIME - (SDL_GetTicks() - previous_frame_time);
+
+    // Only delay execution if we are running too fast
+    if (time_to_wait > 0 && time_to_wait <= FRAME_TARGET_TIME) {
+        SDL_Delay(time_to_wait);
+    }
+
     previous_frame_time = SDL_GetTicks();
 
     // initialize array of triangles to render
     triangles_to_render = NULL;
 
-    int time_to_wait =
-        FRAME_TARGET_TIME - (SDL_GetTicks() - previous_frame_time);
-
-    if (time_to_wait > 0 && time_to_wait <= FRAME_TARGET_TIME) {
-        SDL_Delay(time_to_wait);
-    }
-
     mesh.rotation.x += 0.01;
-    mesh.rotation.y += 0.00;
-    mesh.rotation.z += 0.00;
+    mesh.rotation.y += 0.02;
+    mesh.rotation.z += 0.01;
 
     // loop all triangle faces of our mesh
     int num_faces = array_length(mesh.faces);
@@ -124,6 +126,7 @@ void update(void) {
 
         // 2. Take their cross product and find the perpendicular normal N
         vec3_t normal = vec3_cross(vector_ab, vector_ac);
+        vec3_normalize(&normal);
         // 3. Find the camera ray vector by subtracting the camera position from
         // point A
         vec3_t camera_ray = vec3_sub(camera_position, vector_a);
@@ -161,9 +164,6 @@ void render(void) {
     // Loop all projected triangles and render them
     for (int i = 0; i < num_triangles; i++) {
         triangle_t triangle = triangles_to_render[i];
-        draw_rect(triangle.points[0].x, triangle.points[0].y, 3, 3, 0xFFFFFF00);
-        draw_rect(triangle.points[1].x, triangle.points[1].y, 3, 3, 0xFFFFFF00);
-        draw_rect(triangle.points[2].x, triangle.points[2].y, 3, 3, 0xFFFFFF00);
 
         draw_triangle(triangle.points[0].x, triangle.points[0].y,
                       triangle.points[1].x, triangle.points[1].y,

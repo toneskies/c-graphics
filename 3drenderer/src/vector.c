@@ -21,6 +21,10 @@ vec2_t vec2_div(vec2_t a, float factor) {
     return res;
 }
 float vec2_dot(vec2_t a, vec2_t b) { return (a.x * b.x) + (a.y * b.y); }
+void vec2_normalize(vec2_t* a) {
+    a->x = a->x / vec2_length(*a);
+    a->y = a->y / vec2_length(*a);
+}
 
 // Implementation of Vector 3D Functions
 float vec3_length(vec3_t v) { return sqrt(v.x * v.x + v.y * v.y + v.z * v.z); }
@@ -40,7 +44,6 @@ vec3_t vec3_div(vec3_t a, float factor) {
     vec3_t res = {.x = a.x / factor, .y = a.y / factor, .z = a.z / factor};
     return res;
 }
-
 vec3_t vec3_cross(vec3_t a, vec3_t b) {
     vec3_t res = {.x = a.y * b.z - a.z * b.y,
                   .y = a.z * b.x - a.x * b.z,
@@ -50,7 +53,11 @@ vec3_t vec3_cross(vec3_t a, vec3_t b) {
 float vec3_dot(vec3_t a, vec3_t b) {
     return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
 }
-
+void vec3_normalize(vec3_t* a) {
+    a->x = a->x / vec3_length(*a);
+    a->y = a->y / vec3_length(*a);
+    a->z = a->z / vec3_length(*a);
+}
 vec3_t vec3_rotate_x(vec3_t v, float angle) {
     vec3_t rotated_vector = {.x = v.x,
                              .y = v.y * cos(angle) - v.z * sin(angle),
