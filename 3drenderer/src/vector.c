@@ -54,9 +54,12 @@ float vec3_dot(vec3_t a, vec3_t b) {
     return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
 }
 void vec3_normalize(vec3_t* a) {
-    a->x = a->x / vec3_length(*a);
-    a->y = a->y / vec3_length(*a);
-    a->z = a->z / vec3_length(*a);
+    float length = vec3_length(*a);  // Calculate length once
+    if (length != 0) {
+        a->x /= length;
+        a->y /= length;
+        a->z /= length;
+    }
 }
 vec3_t vec3_rotate_x(vec3_t v, float angle) {
     vec3_t rotated_vector = {.x = v.x,
