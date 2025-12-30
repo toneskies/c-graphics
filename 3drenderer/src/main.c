@@ -11,7 +11,7 @@
 
 triangle_t* triangles_to_render = NULL;
 
-vec3_t camera_position = {.x = 0, .y = 0, .z = -5};
+vec3_t camera_position = {.x = 0, .y = 0, .z = 0};
 
 float fov_factor = 640;
 
@@ -90,8 +90,10 @@ void update(void) {
         face_vertices[2] = mesh.vertices[mesh_face.c - 1];
 
         triangle_t projected_triangle;
+        vec3_t transformed_vertices[3];
 
-        // loop all three vertices of this current face and apply transf
+        // loop all three vertices of this current face and apply
+        // transformations
         for (int j = 0; j < 3; j++) {
             vec3_t transformed_vertex = face_vertices[j];
 
@@ -103,10 +105,40 @@ void update(void) {
                 vec3_rotate_z(transformed_vertex, mesh.rotation.z);
 
             // translate verted away from the camera in z
-            transformed_vertex.z -= camera_position.z;
+            transformed_vertex.z += 5;
 
+            // Save transformed vertex in the array of transformed vertices
+            transformed_vertices[j] = transformed_vertex;
+        }
+
+        // TODO: Check backface culling
+        // Note: We defined Clock-wise vertex numbering for our engine
+        // 1. Find vectors B-A and C-A
+        vec3_t vector_a = transformed_vertices[0]; /*    A   */
+        vec3_t vector_b = transformed_vertices[1]; /*   / \  */
+        vec3_t vector_c = transformed_vertices[2]; /*  C---B */
+
+        // Get vector sub of B-A and C-A
+        vec3_t vector_ab = vec3_sub(vector_b, vector_a);
+        vec3_t vector_ac = vec3_sub(vector_c, vector_a);
+
+        // 2. Take their cross product and find the perpendicular normal N
+        vec3_t normal = vec3_cross(vector_ab, vector_ac);
+        // 3. Find the camera ray vector by subtracting the camera position from
+        // point A
+        vec3_t camera_ray = vec3_sub(camera_position, vector_a);
+        // 4. Take the dot product between the normal N and the camera ray
+        float dot_normal_camera = vec3_dot(normal, camera_ray);
+        // 5. If this dot product is less than zero, then do not display the
+        // face
+        if (dot_normal_camera < 0) {
+            continue;
+        }
+
+        // Loop all three vertices to perform projection
+        for (int j = 0; j < 3; j++) {
             // project the current vertex
-            vec2_t projected_point = project(transformed_vertex);
+            vec2_t projected_point = project(transformed_vertices[j]);
 
             // Scale and translate the projected points to the middle of the
             // screen
