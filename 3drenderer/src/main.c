@@ -36,7 +36,7 @@ void setup(void) {
                                              window_width, window_height);
 
     // load_cube_mesh_data();
-    load_obj_file_data("./assets/cube05.obj");
+    load_obj_file_data("./assets/cube.obj");
 }
 
 void process_input(void) {
@@ -171,7 +171,7 @@ void render(void) {
                              0xFFFFFFFF);
         draw_triangle(triangle.points[0].x, triangle.points[0].y,
                       triangle.points[1].x, triangle.points[1].y,
-                      triangle.points[2].x, triangle.points[2].y, 0xFFFFFFFF);
+                      triangle.points[2].x, triangle.points[2].y, 0xFF000000);
     }
 
     // clear the array of triangles to render every frame loop
