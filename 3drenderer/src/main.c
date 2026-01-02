@@ -16,6 +16,16 @@ vec3_t camera_position = {0, 0, 0};
 float fov_factor = 640;
 
 bool is_running = false;
+typedef enum DisplayMode {
+    WIREDOT_1,
+    WIRE_2,
+    FILLED_3,
+    FILLEDWIRE_4,
+} displaymode_t;
+displaymode_t model_style = WIREDOT_1;
+
+bool backface_cull = false;
+
 int previous_frame_time = 0;
 
 void setup(void) {
@@ -49,6 +59,12 @@ void process_input(void) {
             break;
         case SDL_KEYDOWN:
             if (event.key.keysym.sym == SDLK_ESCAPE) is_running = false;
+            if (event.key.keysym.sym == SDLK_1) model_style = WIREDOT_1;
+            if (event.key.keysym.sym == SDLK_2) model_style = WIRE_2;
+            if (event.key.keysym.sym == SDLK_3) model_style = FILLED_3;
+            if (event.key.keysym.sym == SDLK_4) model_style = FILLEDWIRE_4;
+            if (event.key.keysym.sym == SDLK_c) backface_cull = true;
+            if (event.key.keysym.sym == SDLK_d) backface_cull = false;
             break;
     }
 }
@@ -96,6 +112,7 @@ void update(void) {
 
         // loop all three vertices of this current face and apply
         // transformations
+
         for (int j = 0; j < 3; j++) {
             vec3_t transformed_vertex = face_vertices[j];
 
@@ -113,29 +130,31 @@ void update(void) {
             transformed_vertices[j] = transformed_vertex;
         }
 
-        // TODO: Check backface culling
-        // Note: We defined Clock-wise vertex numbering for our engine
-        // 1. Find vectors B-A and C-A
-        vec3_t vector_a = transformed_vertices[0]; /*    A   */
-        vec3_t vector_b = transformed_vertices[1]; /*   / \  */
-        vec3_t vector_c = transformed_vertices[2]; /*  C---B */
+        if (backface_cull) {
+            // TODO: Check backface culling
+            // Note: We defined Clock-wise vertex numbering for our engine
+            // 1. Find vectors B-A and C-A
+            vec3_t vector_a = transformed_vertices[0]; /*    A   */
+            vec3_t vector_b = transformed_vertices[1]; /*   / \  */
+            vec3_t vector_c = transformed_vertices[2]; /*  C---B */
 
-        // Get vector sub of B-A and C-A
-        vec3_t vector_ab = vec3_sub(vector_b, vector_a);
-        vec3_t vector_ac = vec3_sub(vector_c, vector_a);
+            // Get vector sub of B-A and C-A
+            vec3_t vector_ab = vec3_sub(vector_b, vector_a);
+            vec3_t vector_ac = vec3_sub(vector_c, vector_a);
 
-        // 2. Take their cross product and find the perpendicular normal N
-        vec3_t normal = vec3_cross(vector_ab, vector_ac);
-        vec3_normalize(&normal);
-        // 3. Find the camera ray vector by subtracting the camera position from
-        // point A
-        vec3_t camera_ray = vec3_sub(camera_position, vector_a);
-        // 4. Take the dot product between the normal N and the camera ray
-        float dot_normal_camera = vec3_dot(normal, camera_ray);
-        // 5. If this dot product is less than zero, then do not display the
-        // face
-        if (dot_normal_camera < 0) {
-            continue;
+            // 2. Take their cross product and find the perpendicular normal N
+            vec3_t normal = vec3_cross(vector_ab, vector_ac);
+            vec3_normalize(&normal);
+            // 3. Find the camera ray vector by subtracting the camera position
+            // from point A
+            vec3_t camera_ray = vec3_sub(camera_position, vector_a);
+            // 4. Take the dot product between the normal N and the camera ray
+            float dot_normal_camera = vec3_dot(normal, camera_ray);
+            // 5. If this dot product is less than zero, then do not display the
+            // face
+            if (dot_normal_camera < 0) {
+                continue;
+            }
         }
 
         // Loop all three vertices to perform projection
@@ -165,13 +184,48 @@ void render(void) {
     for (int i = 0; i < num_triangles; i++) {
         triangle_t triangle = triangles_to_render[i];
 
-        draw_filled_triangle(triangle.points[0].x, triangle.points[0].y,
-                             triangle.points[1].x, triangle.points[1].y,
-                             triangle.points[2].x, triangle.points[2].y,
-                             0xFFFFFFFF);
-        draw_triangle(triangle.points[0].x, triangle.points[0].y,
-                      triangle.points[1].x, triangle.points[1].y,
-                      triangle.points[2].x, triangle.points[2].y, 0xFF000000);
+        switch (model_style) {
+            case WIREDOT_1:
+                draw_triangle(triangle.points[0].x, triangle.points[0].y,
+                              triangle.points[1].x, triangle.points[1].y,
+                              triangle.points[2].x, triangle.points[2].y,
+                              0xFFFFFFFF);
+                draw_pixel(triangle.points[0].x, triangle.points[0].y,
+                           0xFFFF0000);
+                draw_pixel(triangle.points[1].x, triangle.points[1].y,
+                           0xFFFF0000);
+                draw_pixel(triangle.points[2].x, triangle.points[2].y,
+                           0xFFFF0000);
+
+                break;
+            case WIRE_2:
+                draw_triangle(triangle.points[0].x, triangle.points[0].y,
+                              triangle.points[1].x, triangle.points[1].y,
+                              triangle.points[2].x, triangle.points[2].y,
+                              0xFFFFFFFF);
+                break;
+            case FILLED_3:
+                draw_filled_triangle(triangle.points[0].x, triangle.points[0].y,
+                                     triangle.points[1].x, triangle.points[1].y,
+                                     triangle.points[2].x, triangle.points[2].y,
+                                     0xFFFFFFFF);
+                break;
+            case FILLEDWIRE_4:
+                draw_filled_triangle(triangle.points[0].x, triangle.points[0].y,
+                                     triangle.points[1].x, triangle.points[1].y,
+                                     triangle.points[2].x, triangle.points[2].y,
+                                     0xFFFFFFFF);
+                draw_triangle(triangle.points[0].x, triangle.points[0].y,
+                              triangle.points[1].x, triangle.points[1].y,
+                              triangle.points[2].x, triangle.points[2].y,
+                              0xFF000000);
+                break;
+            default:
+                printf(
+                    "Model Style invalid choice, defaulting to wireframe with "
+                    "dots.\n");
+                break;
+        }
     }
 
     // clear the array of triangles to render every frame loop
