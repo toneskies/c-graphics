@@ -21,7 +21,7 @@ void bubble_sort(triangle_t* triangles, int n) {
     for (i = 0; i < n - 1; i++) {
         swapped = false;
         for (j = 0; j < n - i - 1; j++) {
-            if (triangles[j].avg_depth > triangles[j + 1].avg_depth) {
+            if (triangles[j].avg_depth < triangles[j + 1].avg_depth) {
                 triangle_swap(&triangles[j], &triangles[j + 1]);
                 swapped = true;
             }
@@ -93,7 +93,7 @@ void draw_filled_triangle(int x0, int y0, int x1, int y1, int x2, int y2,
     } else {
         // Calculate the new vertex (Mx,My) using triangle similarity
         int My = y1;
-        int Mx = (((x2 - x0) * (y1 - y0)) / (y2 - y0)) + x0;
+        int Mx = (int)((float)(x2 - x0) * (y1 - y0) / (float)(y2 - y0)) + x0;
 
         // Draw flat-bottom triangle
         fill_flat_bottom_triangle(x0, y0, x1, y1, Mx, My, color);
