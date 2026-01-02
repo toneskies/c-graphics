@@ -22,8 +22,11 @@ vec2_t vec2_div(vec2_t a, float factor) {
 }
 float vec2_dot(vec2_t a, vec2_t b) { return (a.x * b.x) + (a.y * b.y); }
 void vec2_normalize(vec2_t* a) {
-    a->x = a->x / vec2_length(*a);
-    a->y = a->y / vec2_length(*a);
+    float length = vec2_length(*a);  // Calculate length once
+    if (length != 0) {
+        a->x /= length;
+        a->y /= length;
+    }
 }
 
 // Implementation of Vector 3D Functions
@@ -80,4 +83,15 @@ vec3_t vec3_rotate_z(vec3_t v, float angle) {
                              .y = v.x * sin(angle) + v.y * cos(angle),
                              .z = v.z};
     return rotated_vector;
+}
+
+// Vector Conversion Functions
+vec4_t vec4_from_vec3(vec3_t v) {
+    vec4_t result = {v.x, v.y, v.z, 1.0};
+    return result;
+}
+
+vec3_t vec3_from_vec4(vec4_t v) {
+    vec3_t result = {v.x, v.y, v.z};
+    return result;
 }

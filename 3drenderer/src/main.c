@@ -5,6 +5,7 @@
 
 #include "array.h"
 #include "display.h"
+#include "matrix.h"
 #include "mesh.h"
 #include "triangle.h"
 #include "vector.h"
@@ -90,9 +91,21 @@ void update(void) {
     // initialize array of triangles to render
     triangles_to_render = NULL;
 
-    mesh.rotation.x += 0.01;
-    mesh.rotation.y += 0.02;
-    mesh.rotation.z += 0.01;
+    // Change the mesh scale/rotation values per animation frame
+    // mesh.rotation.x += 0.01;
+    // mesh.rotation.y += 0.02;
+    // mesh.rotation.z += 0.01;
+
+    // mesh.scale.x += 0.002;
+    // mesh.scale.y += 0.001;
+    mesh.translation.x += 0.01;
+    mesh.translation.z = 5.0;
+    // create a scale and translation matrix that will be used to multiply the
+    // mesh vertices
+    mat4_t scale_matrix =
+        mat4_make_scale(mesh.scale.x, mesh.scale.y, mesh.scale.z);
+    mat4_t translation_matrix = mat4_make_translate(
+        mesh.translation.x, mesh.translation.y, mesh.translation.z);
 
     // loop all triangle faces of our mesh
     int num_faces = array_length(mesh.faces);
@@ -104,23 +117,20 @@ void update(void) {
         face_vertices[1] = mesh.vertices[mesh_face.b - 1];
         face_vertices[2] = mesh.vertices[mesh_face.c - 1];
 
-        vec3_t transformed_vertices[3];
+        vec4_t transformed_vertices[3];
 
         // loop all three vertices of this current face and apply
         // transformations
 
         for (int j = 0; j < 3; j++) {
-            vec3_t transformed_vertex = face_vertices[j];
+            vec4_t transformed_vertex = vec4_from_vec3(face_vertices[j]);
 
             transformed_vertex =
-                vec3_rotate_x(transformed_vertex, mesh.rotation.x);
+                mat4_mul_vec4(scale_matrix, transformed_vertex);
             transformed_vertex =
-                vec3_rotate_y(transformed_vertex, mesh.rotation.y);
-            transformed_vertex =
-                vec3_rotate_z(transformed_vertex, mesh.rotation.z);
-
-            // translate verted away from the camera in z
-            transformed_vertex.z += 5;
+                mat4_mul_vec4(translation_matrix, transformed_vertex);
+            // translate vertex away from the camera in z
+            // transformed_vertex.z += 5;
 
             // Save transformed vertex in the array of transformed vertices
             transformed_vertices[j] = transformed_vertex;
@@ -130,13 +140,18 @@ void update(void) {
             // TODO: Check backface culling
             // Note: We defined Clock-wise vertex numbering for our engine
             // 1. Find vectors B-A and C-A
-            vec3_t vector_a = transformed_vertices[0]; /*    A   */
-            vec3_t vector_b = transformed_vertices[1]; /*   / \  */
-            vec3_t vector_c = transformed_vertices[2]; /*  C---B */
+            vec3_t vector_a =
+                vec3_from_vec4(transformed_vertices[0]); /*    A   */
+            vec3_t vector_b =
+                vec3_from_vec4(transformed_vertices[1]); /*   / \  */
+            vec3_t vector_c =
+                vec3_from_vec4(transformed_vertices[2]); /*  C---B */
 
             // Get vector sub of B-A and C-A
             vec3_t vector_ab = vec3_sub(vector_b, vector_a);
             vec3_t vector_ac = vec3_sub(vector_c, vector_a);
+            vec3_normalize(&vector_ab);
+            vec3_normalize(&vector_ac);
 
             // 2. Take their cross product and find the perpendicular normal N
             vec3_t normal = vec3_cross(vector_ab, vector_ac);
@@ -157,7 +172,8 @@ void update(void) {
         vec2_t projected_points[3];
         for (int j = 0; j < 3; j++) {
             // project the current vertex
-            projected_points[j] = project(transformed_vertices[j]);
+            projected_points[j] =
+                project(vec3_from_vec4(transformed_vertices[j]));
 
             // Scale and translate the projected points to the middle of the
             // screen

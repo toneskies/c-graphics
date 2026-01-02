@@ -5,7 +5,11 @@
 
 #include "array.h"
 
-mesh_t mesh = {.vertices = NULL, .faces = NULL, .rotation = {0, 0, 0}};
+mesh_t mesh = {.vertices = NULL,
+               .faces = NULL,
+               .rotation = {0, 0, 0},
+               .scale = {1.0, 1.0, 1.0},
+               .translation = {0, 0, 0}};
 
 // TODO: Create implementation for mesh.h functions
 vec3_t cube_vertices[N_CUBE_VERTICES] = {
