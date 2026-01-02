@@ -9,6 +9,28 @@ void int_swap(int* a, int* b) {
     *a = *b;
     *b = tmp;
 }
+void triangle_swap(triangle_t* a, triangle_t* b) {
+    triangle_t tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
+
+void bubble_sort(triangle_t* triangles, int n) {
+    int i, j;
+    bool swapped;
+    for (i = 0; i < n - 1; i++) {
+        swapped = false;
+        for (j = 0; j < n - i - 1; j++) {
+            if (triangles[j].avg_depth > triangles[j + 1].avg_depth) {
+                triangle_swap(&triangles[j], &triangles[j + 1]);
+                swapped = true;
+            }
+        }
+        if (swapped == false) {
+            break;
+        }
+    }
+}
 
 void fill_flat_bottom_triangle(int x0, int y0, int x1, int y1, int x2, int y2,
                                uint32_t color) {

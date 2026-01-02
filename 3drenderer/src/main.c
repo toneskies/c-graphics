@@ -164,6 +164,14 @@ void update(void) {
             projected_points[j].x += (window_width / 2);
             projected_points[j].y += (window_height / 2);
         }
+
+        // calculate the average depth for each face based on the vertices after
+        // transformation
+        float avg_depth =
+            (transformed_vertices[0].z + transformed_vertices[1].z +
+             transformed_vertices[2].z) /
+            3.0;
+
         triangle_t projected_triangle = {
             .points =
                 {
@@ -172,11 +180,15 @@ void update(void) {
                     {projected_points[2].x, projected_points[2].y},
 
                 },
-            .color = mesh_face.color};
+            .color = mesh_face.color,
+            .avg_depth = avg_depth};
 
-        // triangles_to_render[i] = projected_triangle;
         array_push(triangles_to_render, projected_triangle);
     }
+    // TODO: sort triangles to render by their average depth, that's the
+    // painter's algorithm
+    int triangle_count = array_length(triangles_to_render);
+    bubble_sort(triangles_to_render, triangle_count);
 }
 
 void render(void) {
