@@ -1,10 +1,10 @@
-#include <SDL2/SDL.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 
 #include "array.h"
 #include "display.h"
+#include "light.h"
 #include "matrix.h"
 #include "mesh.h"
 #include "triangle.h"
@@ -46,8 +46,8 @@ void setup(void) {
     proj_matrix = mat4_make_perspective(fov, aspect, znear, zfar);
 
     // Geometry Loading
-    load_cube_mesh_data();
-    // load_obj_file_data("./assets/f22.obj");
+    // load_cube_mesh_data();
+    load_obj_file_data("./assets/crab.obj");
 }
 
 void process_input(void) {
@@ -98,12 +98,9 @@ void update(void) {
     triangles_to_render = NULL;
 
     // Change the mesh scale/rotation values per animation frame
-    mesh.rotation.x += 0.01;
+    // mesh.rotation.x += 0.1;
     mesh.rotation.y += 0.01;
-    mesh.rotation.z += 0.01;
-    mesh.scale.x += 0.002;
-    mesh.scale.y += 0.001;
-    mesh.translation.x += 0.01;
+    // mesh.rotation.z += 0.02;
     mesh.translation.z = 5.0;
     // create a scale, rotation and translation matrices that will be used to
     // multiply the mesh vertices
@@ -151,33 +148,28 @@ void update(void) {
             transformed_vertices[j] = transformed_vertex;
         }
 
+        // TODO: Check backface culling
+        // Note: We defined Clock-wise vertex numbering for our engine
+        // 1. Find vectors B-A and C-A
+        vec3_t vector_a = vec3_from_vec4(transformed_vertices[0]); /*    A   */
+        vec3_t vector_b = vec3_from_vec4(transformed_vertices[1]); /*   / \  */
+        vec3_t vector_c = vec3_from_vec4(transformed_vertices[2]); /*  C---B */
+
+        // Get vector sub of B-A and C-A
+        vec3_t vector_ab = vec3_sub(vector_b, vector_a);
+        vec3_t vector_ac = vec3_sub(vector_c, vector_a);
+
+        // 2. Take their cross product and find the perpendicular normal N
+        vec3_t normal = vec3_cross(vector_ab, vector_ac);
+        vec3_normalize(&normal);
+        // 3. Find the camera ray vector by subtracting the camera position
+        // from point A
+        vec3_t camera_ray = vec3_sub(camera_position, vector_a);
+        // 4. Take the dot product between the normal N and the camera ray
+        float dot_normal_camera = vec3_dot(normal, camera_ray);
+        // 5. If this dot product is less than zero, then do not display the
+        // face
         if (cull_method == CULL_BACKFACE) {
-            // TODO: Check backface culling
-            // Note: We defined Clock-wise vertex numbering for our engine
-            // 1. Find vectors B-A and C-A
-            vec3_t vector_a =
-                vec3_from_vec4(transformed_vertices[0]); /*    A   */
-            vec3_t vector_b =
-                vec3_from_vec4(transformed_vertices[1]); /*   / \  */
-            vec3_t vector_c =
-                vec3_from_vec4(transformed_vertices[2]); /*  C---B */
-
-            // Get vector sub of B-A and C-A
-            vec3_t vector_ab = vec3_sub(vector_b, vector_a);
-            vec3_t vector_ac = vec3_sub(vector_c, vector_a);
-            vec3_normalize(&vector_ab);
-            vec3_normalize(&vector_ac);
-
-            // 2. Take their cross product and find the perpendicular normal N
-            vec3_t normal = vec3_cross(vector_ab, vector_ac);
-            vec3_normalize(&normal);
-            // 3. Find the camera ray vector by subtracting the camera position
-            // from point A
-            vec3_t camera_ray = vec3_sub(camera_position, vector_a);
-            // 4. Take the dot product between the normal N and the camera ray
-            float dot_normal_camera = vec3_dot(normal, camera_ray);
-            // 5. If this dot product is less than zero, then do not display the
-            // face
             if (dot_normal_camera < 0) {
                 continue;
             }
@@ -190,8 +182,8 @@ void update(void) {
             projected_points[j] =
                 mat4_mul_vec4_project(proj_matrix, transformed_vertices[j]);
             // scale into viewport
-            projected_points[j].x *= (window_width / 2.0);
-            projected_points[j].y *= (window_height / 2.0);
+            projected_points[j].x *= -1 * (window_width / 2.0);
+            projected_points[j].y *= -1 * (window_height / 2.0);
             // translate the projected points to the middle of the screen
             projected_points[j].x += (window_width / 2.0);
             projected_points[j].y += (window_height / 2.0);
@@ -204,6 +196,17 @@ void update(void) {
              transformed_vertices[2].z) /
             3.0;
 
+        // calculate the shade intensity based on how aligned ois the face
+        // normal and the light
+        float light_intensity_factor =
+            -1 * vec3_dot(normal,
+                          light.direction);  // fixing the light intensity
+                                             // factor to point inwards with -1
+
+        // calculate the triangle color based on light angle
+        uint32_t triangle_color =
+            light_apply_intensity(mesh_face.color, light_intensity_factor);
+
         triangle_t projected_triangle = {
             .points =
                 {
@@ -212,7 +215,7 @@ void update(void) {
                     {projected_points[2].x, projected_points[2].y},
 
                 },
-            .color = mesh_face.color,
+            .color = triangle_color,
             .avg_depth = avg_depth};
 
         array_push(triangles_to_render, projected_triangle);
