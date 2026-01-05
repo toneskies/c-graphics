@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "array.h"
 #include "display.h"
@@ -12,6 +13,15 @@
 #include "vector.h"
 
 triangle_t* triangles_to_render = NULL;
+int compare_triangles(const void* a, const void* b) {
+    triangle_t* t1 = (triangle_t*)a;
+    triangle_t* t2 = (triangle_t*)b;
+
+    // Descending order (Furthest first)
+    if (t1->avg_depth < t2->avg_depth) return 1;
+    if (t1->avg_depth > t2->avg_depth) return -1;
+    return 0;
+}
 
 vec3_t camera_position = {0, 0, 0};
 mat4_t proj_matrix;
@@ -50,7 +60,7 @@ void setup(void) {
 
     // Geometry Loading
     // load_cube_mesh_data();
-    load_obj_file_data("./assets/woman.obj");
+    load_obj_file_data("./assets/dragon.obj");
 }
 
 void process_input(void) {
@@ -107,7 +117,7 @@ void update(void) {
     // mesh.scale.x += 0.002;
     // mesh.scale.y += 0.001;
     // mesh.translation.x += 0.01;
-    mesh.translation.z = 2000.0;
+    mesh.translation.z = 10.0;
     // create a scale, rotation and translation matrices that will be used to
     // multiply the mesh vertices
     mat4_t scale_matrix =
@@ -266,7 +276,8 @@ void update(void) {
     // TODO: sort triangles to render by their average depth, that's the
     // painter's algorithm
     int triangle_count = array_length(triangles_to_render);
-    bubble_sort(triangles_to_render, triangle_count);
+    qsort(triangles_to_render, triangle_count, sizeof(triangle_t),
+          compare_triangles);
 }
 
 void render(void) {
