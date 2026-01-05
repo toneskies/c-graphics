@@ -5,6 +5,7 @@
 
 #include "array.h"
 #include "display.h"
+#include "light.h"
 #include "matrix.h"
 #include "mesh.h"
 #include "triangle.h"
@@ -17,6 +18,8 @@ mat4_t proj_matrix;
 
 bool is_running = false;
 int previous_frame_time = 0;
+
+vec3_t light_direction = {-1.0, 1.0, 0.0};
 
 void setup(void) {
     render_method = RENDER_WIRE;
@@ -46,8 +49,8 @@ void setup(void) {
     proj_matrix = mat4_make_perspective(fov, aspect, znear, zfar);
 
     // Geometry Loading
-    load_cube_mesh_data();
-    // load_obj_file_data("./assets/f22.obj");
+    // load_cube_mesh_data();
+    load_obj_file_data("./assets/woman.obj");
 }
 
 void process_input(void) {
@@ -98,13 +101,13 @@ void update(void) {
     triangles_to_render = NULL;
 
     // Change the mesh scale/rotation values per animation frame
-    mesh.rotation.x += 0.01;
+    // mesh.rotation.x += 0.01;
     mesh.rotation.y += 0.01;
-    mesh.rotation.z += 0.01;
-    mesh.scale.x += 0.002;
-    mesh.scale.y += 0.001;
-    mesh.translation.x += 0.01;
-    mesh.translation.z = 5.0;
+    // mesh.rotation.z += 0.01;
+    // mesh.scale.x += 0.002;
+    // mesh.scale.y += 0.001;
+    // mesh.translation.x += 0.01;
+    mesh.translation.z = 2000.0;
     // create a scale, rotation and translation matrices that will be used to
     // multiply the mesh vertices
     mat4_t scale_matrix =
@@ -115,6 +118,8 @@ void update(void) {
     mat4_t rotation_matrix_y = mat4_make_rotation_y(mesh.rotation.y);
     mat4_t rotation_matrix_z = mat4_make_rotation_z(mesh.rotation.z);
 
+    // find light ray vector by sub light vector and triangle normal
+    vec3_normalize(&light_direction);
     // loop all triangle faces of our mesh
     int num_faces = array_length(mesh.faces);
     for (int i = 0; i < num_faces; i++) {
@@ -191,7 +196,7 @@ void update(void) {
                 mat4_mul_vec4_project(proj_matrix, transformed_vertices[j]);
             // scale into viewport
             projected_points[j].x *= (window_width / 2.0);
-            projected_points[j].y *= (window_height / 2.0);
+            projected_points[j].y *= -1 * (window_height / 2.0);
             // translate the projected points to the middle of the screen
             projected_points[j].x += (window_width / 2.0);
             projected_points[j].y += (window_height / 2.0);
@@ -215,8 +220,49 @@ void update(void) {
             .color = mesh_face.color,
             .avg_depth = avg_depth};
 
+        // LIGHTING
+        // find normal of triangle using 2 edges
+        vec3_t edge_1 = vec3_from_vec4(transformed_vertices[0]); /*    A   */
+        vec3_t edge_2 = vec3_from_vec4(transformed_vertices[1]); /*   / \  */
+        vec3_t edge_3 = vec3_from_vec4(transformed_vertices[2]); /*  C---B */
+
+        vec3_t vector_1 = vec3_sub(edge_2, edge_1);
+        vec3_t vector_2 = vec3_sub(edge_3, edge_1);
+
+        vec3_t tri_normal = vec3_cross(vector_1, vector_2);
+        vec3_normalize(&tri_normal);
+
+        float dot_normal_light = vec3_dot(tri_normal, light_direction);
+
+        // // Cel/Toon Shading apparently...
+        // if (dot_normal_light < 0) {
+        //     projected_triangle.color =
+        //         light_apply_intensity(projected_triangle.color, 0.1);
+        // } else if (dot_normal_light > 0.9) {
+        //     projected_triangle.color =
+        //         light_apply_intensity(projected_triangle.color, 1.0);
+        // } else if (dot_normal_light > 0.5) {
+        //     projected_triangle.color =
+        //         light_apply_intensity(projected_triangle.color, 0.7);
+        // } else {
+        //     projected_triangle.color =
+        //         light_apply_intensity(projected_triangle.color, 0.4);
+        // }
+
+        // smooth shading
+        if (dot_normal_light < 0.1)
+            dot_normal_light = 0.1;  // Clamp negative values
+        projected_triangle.color =
+            light_apply_intensity(projected_triangle.color, dot_normal_light);
+
+        // if less than 0, clamp to 0
+        // if 0, fully aligned (full color)
+        // if 90 (low percentage)
+        // if greater than 90 (fully dark), give it black
+
         array_push(triangles_to_render, projected_triangle);
     }
+
     // TODO: sort triangles to render by their average depth, that's the
     // painter's algorithm
     int triangle_count = array_length(triangles_to_render);
