@@ -7,6 +7,7 @@
 #include "light.h"
 #include "matrix.h"
 #include "mesh.h"
+#include "texture.h"
 #include "triangle.h"
 #include "vector.h"
 
@@ -45,9 +46,14 @@ void setup(void) {
     float zfar = 100.0;
     proj_matrix = mat4_make_perspective(fov, aspect, znear, zfar);
 
+    // manually load the hardcoded texture data from static array
+    mesh_texture = (uint32_t*)REDBRICK_TEXTURE;
+    texture_width = 64;
+    texture_height = 64;
+
     // Geometry Loading
-    // load_cube_mesh_data();
-    load_obj_file_data("./assets/crab.obj");
+    load_cube_mesh_data();
+    // load_obj_file_data("./assets/crab.obj");
 }
 
 void process_input(void) {
@@ -67,6 +73,9 @@ void process_input(void) {
                 render_method = RENDER_FILL_TRIANGLE;
             if (event.key.keysym.sym == SDLK_4)
                 render_method = RENDER_FILL_TRIANGLE_WIRE;
+            if (event.key.keysym.sym == SDLK_5) render_method = RENDER_TEXTURED;
+            if (event.key.keysym.sym == SDLK_6)
+                render_method = RENDER_TEXTURED_WIRE;
             if (event.key.keysym.sym == SDLK_c) cull_method = CULL_BACKFACE;
             if (event.key.keysym.sym == SDLK_d) cull_method = CULL_NONE;
             break;
@@ -98,8 +107,8 @@ void update(void) {
     triangles_to_render = NULL;
 
     // Change the mesh scale/rotation values per animation frame
-    // mesh.rotation.x += 0.1;
-    mesh.rotation.y += 0.01;
+    mesh.rotation.x += 0.01;
+    // mesh.rotation.y += 0.01;
     // mesh.rotation.z += 0.02;
     mesh.translation.z = 5.0;
     // create a scale, rotation and translation matrices that will be used to
@@ -136,9 +145,9 @@ void update(void) {
 
             // Order matters: First scale, rotate, translate [S] * [R] * [T] * v
             world_matrix = mat4_mul_mat4(scale_matrix, world_matrix);
-            world_matrix = mat4_mul_mat4(rotation_matrix_x, world_matrix);
-            world_matrix = mat4_mul_mat4(rotation_matrix_y, world_matrix);
             world_matrix = mat4_mul_mat4(rotation_matrix_z, world_matrix);
+            world_matrix = mat4_mul_mat4(rotation_matrix_y, world_matrix);
+            world_matrix = mat4_mul_mat4(rotation_matrix_x, world_matrix);
             world_matrix = mat4_mul_mat4(translation_matrix, world_matrix);
             // TODO: multiply the world matrix by the original vector
             transformed_vertex =
@@ -182,8 +191,10 @@ void update(void) {
             projected_points[j] =
                 mat4_mul_vec4_project(proj_matrix, transformed_vertices[j]);
             // scale into viewport
-            projected_points[j].x *= -1 * (window_width / 2.0);
-            projected_points[j].y *= -1 * (window_height / 2.0);
+            projected_points[j].y *= -1;
+
+            projected_points[j].x *= (window_width / 2.0);
+            projected_points[j].y *= (window_height / 2.0);
             // translate the projected points to the middle of the screen
             projected_points[j].x += (window_width / 2.0);
             projected_points[j].y += (window_height / 2.0);
@@ -215,15 +226,27 @@ void update(void) {
                     {projected_points[2].x, projected_points[2].y},
 
                 },
+            .texcoords = {{mesh_face.a_uv.u, mesh_face.a_uv.v},
+                          {mesh_face.b_uv.u, mesh_face.b_uv.v},
+                          {mesh_face.c_uv.u, mesh_face.c_uv.v}},
             .color = triangle_color,
             .avg_depth = avg_depth};
 
         array_push(triangles_to_render, projected_triangle);
     }
-    // TODO: sort triangles to render by their average depth, that's the
-    // painter's algorithm
-    int triangle_count = array_length(triangles_to_render);
-    bubble_sort(triangles_to_render, triangle_count);
+    // Sort the triangles to render by their avg_depth
+    int num_triangles = array_length(triangles_to_render);
+    for (int i = 0; i < num_triangles; i++) {
+        for (int j = i; j < num_triangles; j++) {
+            if (triangles_to_render[i].avg_depth <
+                triangles_to_render[j].avg_depth) {
+                // Swap the triangles positions in the array
+                triangle_t temp = triangles_to_render[i];
+                triangles_to_render[i] = triangles_to_render[j];
+                triangles_to_render[j] = temp;
+            }
+        }
+    }
 }
 
 void render(void) {
@@ -243,9 +266,25 @@ void render(void) {
                                  triangle.color);
         }
 
+        // Draw textured triangle
+        if (render_method == RENDER_TEXTURED ||
+            render_method == RENDER_TEXTURED_WIRE) {
+            draw_textured_triangle(triangle.points[0].x, triangle.points[0].y,
+                                   triangle.texcoords[0].u,
+                                   triangle.texcoords[0].v,  // vertex A
+                                   triangle.points[1].x, triangle.points[1].y,
+                                   triangle.texcoords[1].u,
+                                   triangle.texcoords[1].v,  // vertex B
+                                   triangle.points[2].x, triangle.points[2].y,
+                                   triangle.texcoords[2].u,
+                                   triangle.texcoords[2].v,  // vertex C
+                                   mesh_texture);
+        }
+
         if (render_method == RENDER_WIRE ||
             render_method == RENDER_WIRE_VERTEX ||
-            render_method == RENDER_FILL_TRIANGLE_WIRE) {
+            render_method == RENDER_FILL_TRIANGLE_WIRE ||
+            render_method == RENDER_TEXTURED_WIRE) {
             draw_triangle(triangle.points[0].x, triangle.points[0].y,
                           triangle.points[1].x, triangle.points[1].y,
                           triangle.points[2].x, triangle.points[2].y,
