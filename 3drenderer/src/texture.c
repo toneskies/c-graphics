@@ -1,9 +1,11 @@
-#include <stdint.h>
+#include "texture.h"
+
 #include <stdio.h>
 
-uint32_t* mesh_texture = NULL;
 int texture_width = 64;
 int texture_height = 64;
+
+uint32_t* mesh_texture = NULL;
 
 const uint8_t REDBRICK_TEXTURE[] = {
     0x38, 0x38, 0x38, 0xff, 0x38, 0x38, 0x38, 0xff, 0x38, 0x38, 0x38, 0xff,

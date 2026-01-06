@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "texture.h"
+
 typedef struct {
     float u;
     float v;
@@ -10,7 +12,8 @@ typedef struct {
 
 extern int texture_width;
 extern int texture_height;
-extern uint32_t* mesh_texture;
+
 extern const uint8_t REDBRICK_TEXTURE[];
+extern uint32_t* mesh_texture;
 
 #endif
