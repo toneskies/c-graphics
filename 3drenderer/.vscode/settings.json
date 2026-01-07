@@ -17,6 +17,13 @@
     "-Wsign-conversion",
     "-Wnull-dereference"
   ],
+  "C_Cpp.default.includePath": [
+    "${workspaceFolder}/src",
+    "${workspaceFolder}/**",
+    "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
+  ],
+  "C_Cpp.default.intelliSenseMode": "macos-clang-arm64",
+  "C_Cpp.default.cStandard": "c99",
   "C_Cpp_Runner.msvcWarnings": [
     "/W4",
     "/permissive-",
@@ -56,5 +63,5 @@
   "C_Cpp_Runner.showCompilationTime": false,
   "C_Cpp_Runner.useLinkTimeOptimization": false,
   "C_Cpp_Runner.msvcSecureNoWarnings": false,
-  "C_Cpp.default.compilerPath": "/usr/bin/gcc"
+  "C_Cpp.default.compilerPath": "/usr/bin/clang"
 }

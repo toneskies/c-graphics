@@ -12,7 +12,9 @@
 #include "upng.h"
 #include "vector.h"
 
-triangle_t* triangles_to_render = NULL;
+#define MAX_TRIANGLES_PER_MESH 10000
+triangle_t triangles_to_render[MAX_TRIANGLES_PER_MESH];
+int num_triangles_to_render = 0;
 
 vec3_t camera_position = {0, 0, 0};
 mat4_t proj_matrix;
@@ -27,6 +29,7 @@ void setup(void) {
     // allocate the required memory in bytes to hold the color buffer
     color_buffer =
         (uint32_t*)malloc(window_width * window_height * sizeof(uint32_t));
+    z_buffer = (float*)malloc(window_width * window_height * sizeof(float));
 
     if (!color_buffer) {
         printf("Bruh your color buffer is null...\n");
@@ -106,8 +109,8 @@ void update(void) {
 
     previous_frame_time = SDL_GetTicks();
 
-    // initialize array of triangles to render
-    triangles_to_render = NULL;
+    // reset number of triangles to 0
+    num_triangles_to_render = 0;
 
     // Change the mesh scale/rotation values per animation frame
     // mesh.rotation.x += 0.03;
@@ -203,13 +206,6 @@ void update(void) {
             projected_points[j].y += (window_height / 2.0);
         }
 
-        // calculate the average depth for each face based on the vertices after
-        // transformation
-        float avg_depth =
-            (transformed_vertices[0].z + transformed_vertices[1].z +
-             transformed_vertices[2].z) /
-            3.0;
-
         // calculate the shade intensity based on how aligned ois the face
         // normal and the light
         float light_intensity_factor =
@@ -236,21 +232,12 @@ void update(void) {
                           {mesh_face.b_uv.u, mesh_face.b_uv.v},
                           {mesh_face.c_uv.u, mesh_face.c_uv.v}},
             .color = triangle_color,
-            .avg_depth = avg_depth};
+        };
 
-        array_push(triangles_to_render, projected_triangle);
-    }
-    // Sort the triangles to render by their avg_depth
-    int num_triangles = array_length(triangles_to_render);
-    for (int i = 0; i < num_triangles; i++) {
-        for (int j = i; j < num_triangles; j++) {
-            if (triangles_to_render[i].avg_depth <
-                triangles_to_render[j].avg_depth) {
-                // Swap the triangles positions in the array
-                triangle_t temp = triangles_to_render[i];
-                triangles_to_render[i] = triangles_to_render[j];
-                triangles_to_render[j] = temp;
-            }
+        // save projected triangle to the array of triangles to render
+        if (num_triangles_to_render < MAX_TRIANGLES_PER_MESH) {
+            triangles_to_render[num_triangles_to_render] = projected_triangle;
+            num_triangles_to_render++;
         }
     }
 }
@@ -259,16 +246,18 @@ void render(void) {
     // exercise 1
     draw_grid(0xFF333333, 10);
 
-    int num_triangles = array_length(triangles_to_render);
     // Loop all projected triangles and render them
-    for (int i = 0; i < num_triangles; i++) {
+    for (int i = 0; i < num_triangles_to_render; i++) {
         triangle_t triangle = triangles_to_render[i];
 
         if (render_method == RENDER_FILL_TRIANGLE ||
             render_method == RENDER_FILL_TRIANGLE_WIRE) {
             draw_filled_triangle(triangle.points[0].x, triangle.points[0].y,
+                                 triangle.points[0].z, triangle.points[0].w,
                                  triangle.points[1].x, triangle.points[1].y,
+                                 triangle.points[1].z, triangle.points[1].w,
                                  triangle.points[2].x, triangle.points[2].y,
+                                 triangle.points[2].z, triangle.points[2].w,
                                  triangle.color);
         }
 
@@ -307,11 +296,10 @@ void render(void) {
         }
     }
 
-    // clear the array of triangles to render every frame loop
-    array_free(triangles_to_render);
-
     render_color_buffer();
+
     clear_color_buffer(0xFF000000);
+    clear_z_buffer();
 
     SDL_RenderPresent(renderer);
 }
@@ -320,6 +308,7 @@ void render(void) {
 /// @param  none
 void free_resources(void) {
     free(color_buffer);
+    free(z_buffer);
     upng_free(png_texture);
     array_free(mesh.faces);
     array_free(mesh.vertices);

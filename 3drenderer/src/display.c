@@ -4,7 +4,10 @@
 
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
+
 uint32_t* color_buffer = NULL;
+float* z_buffer = NULL;
+
 SDL_Texture* color_buffer_texture = NULL;
 int window_height = 600;
 int window_width = 800;
@@ -54,6 +57,13 @@ void clear_color_buffer(uint32_t color) {
     for (int i = 0, buffer_size = window_height * window_width; i < buffer_size;
          i++) {
         color_buffer[i] = color;
+    }
+}
+
+void clear_z_buffer(void) {
+    for (int i = 0, buffer_size = window_height * window_width; i < buffer_size;
+         i++) {
+        z_buffer[i] = 1.0;
     }
 }
 

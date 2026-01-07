@@ -7,7 +7,7 @@ SRC = ./src/*.c
 TARGET = renderer
 
 build:
-	$(CC) $(CFLAGS) $(SRC) -o $(TARGET) $(LDFLAGS)
+	$(CC) $(CFLAGS) $(SRC) -o $(TARGET) $(LDFLAGS) 
 
 run:
 	./$(TARGET)
