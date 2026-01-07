@@ -131,6 +131,8 @@ void load_obj_file_data(char* filename) {
     file = fopen(filename, "r");
     char line[1024];
 
+    tex2_t* texcoords = NULL;
+
     while (fgets(line, 1024, file)) {
         // Vertex Information
         if (strncmp(line, "v ", 2) == 0) {
@@ -138,6 +140,14 @@ void load_obj_file_data(char* filename) {
             sscanf(line, "v %f %f %f", &vertex.x, &vertex.y, &vertex.z);
             array_push(mesh.vertices, vertex);
         }
+
+        // Texture coordinate information
+        if (strncmp(line, "vt ", 3) == 0) {
+            tex2_t texcoord;
+            sscanf(line, "vt %f %f", &texcoord.u, &texcoord.v);
+            array_push(texcoords, texcoord);
+        }
+
         // Face Information
         if (strncmp(line, "f ", 2) == 0) {
             int vertex_indices[3];
@@ -148,45 +158,15 @@ void load_obj_file_data(char* filename) {
                    &texture_indices[1], &normal_indices[1], &vertex_indices[2],
                    &texture_indices[2], &normal_indices[2]);
 
-            face_t face = {.a = vertex_indices[0],
-                           .b = vertex_indices[1],
-                           .c = vertex_indices[2],
+            face_t face = {.a = vertex_indices[0] - 1,
+                           .b = vertex_indices[1] - 1,
+                           .c = vertex_indices[2] - 1,
+                           .a_uv = texcoords[texture_indices[0] - 1],
+                           .b_uv = texcoords[texture_indices[1] - 1],
+                           .c_uv = texcoords[texture_indices[2] - 1],
                            .color = 0xFFFFFFFF};
             array_push(mesh.faces, face);
         }
     }
-}
-
-void load_obj_file_data1(char* filename) {
-    // TODO: Read contents of the .obj file
-    // and load the vertices and faces in our mesh.vertices and mesh.faces
-    FILE* file;
-    char buffer[255];
-
-    if ((file = fopen(filename, "r"))) {
-        printf("File opened successfully.\n");
-    }
-    if (file == NULL) {
-        printf("Error opening file.\n");
-    }
-
-    while (fgets(buffer, 255, file) != NULL) {
-        if (buffer[0] == '#') continue;
-        if (buffer[0] == 'v' && buffer[1] == ' ') {
-            vec3_t mesh_vertex;
-            if (sscanf(buffer, "v %f %f %f", &mesh_vertex.x, &mesh_vertex.y,
-                       &mesh_vertex.z) == 3) {
-                array_push(mesh.vertices, mesh_vertex);
-            }
-        }
-        if (buffer[0] == 'f') {
-            face_t mesh_face;
-            if (sscanf(buffer, "f %d/%*d/%*d %d/%*d/%*d %d/%*d/%*d",
-                       &mesh_face.a, &mesh_face.b, &mesh_face.c) == 3) {
-                array_push(mesh.faces, mesh_face);
-            }
-        }
-    }
-
-    fclose(file);
+    array_free(texcoords);
 }
