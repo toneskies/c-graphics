@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "array.h"
+#include "camera.h"
 #include "display.h"
 #include "light.h"
 #include "matrix.h"
@@ -16,11 +17,13 @@
 triangle_t triangles_to_render[MAX_TRIANGLES_PER_MESH];
 int num_triangles_to_render = 0;
 
-vec3_t camera_position = {0, 0, 0};
+mat4_t world_matrix;
 mat4_t proj_matrix;
+mat4_t view_matrix;
 
 bool is_running = false;
 int previous_frame_time = 0;
+float delta_time = 0.0;
 
 void setup(void) {
     render_method = RENDER_WIRE;
@@ -57,9 +60,9 @@ void setup(void) {
 
     // Geometry Loading
     // load_cube_mesh_data();
-    load_obj_file_data("./assets/drone.obj");
+    load_obj_file_data("./assets/f117.obj");
 
-    load_png_texture_data("./assets/drone.png");
+    load_png_texture_data("./assets/f117.png");
 }
 
 void process_input(void) {
@@ -107,16 +110,29 @@ void update(void) {
         SDL_Delay(time_to_wait);
     }
 
+    // delta time factor converted to seconds to be used to update game objects
+    delta_time = (SDL_GetTicks() - previous_frame_time) / 1000.0;
+
     previous_frame_time = SDL_GetTicks();
 
     // reset number of triangles to 0
     num_triangles_to_render = 0;
 
     // Change the mesh scale/rotation values per animation frame
-    // mesh.rotation.x += 0.03;
-    mesh.rotation.y += 0.03;
-    // mesh.rotation.z += 0.03;
+    mesh.rotation.x += 0.6 * delta_time;
+    mesh.rotation.y += 0.6 * delta_time;
+    mesh.rotation.z += 0.6 * delta_time;
     mesh.translation.z = 5.0;
+
+    // change camera position frame by frame
+    camera.position.x += 0.0 * delta_time;
+    camera.position.y += 0.0 * delta_time;
+
+    // Create a view matrix, frame by frame looking at a hardcoded target point
+    vec3_t target = {0, 0, 4.0};
+    vec3_t up_direction = {0, 1, 0};
+    view_matrix = mat4_look_at(camera.position, target, up_direction);
+
     // create a scale, rotation and translation matrices that will be used to
     // multiply the mesh vertices
     mat4_t scale_matrix =
@@ -147,7 +163,7 @@ void update(void) {
 
             // Create a world matrix combining scale, rotation and translation
             // matrices
-            mat4_t world_matrix = mat4_identity();
+            world_matrix = mat4_identity();
 
             // Order matters: First scale, rotate, translate [S] * [R] * [T] * v
             world_matrix = mat4_mul_mat4(scale_matrix, world_matrix);
@@ -155,9 +171,13 @@ void update(void) {
             world_matrix = mat4_mul_mat4(rotation_matrix_y, world_matrix);
             world_matrix = mat4_mul_mat4(rotation_matrix_x, world_matrix);
             world_matrix = mat4_mul_mat4(translation_matrix, world_matrix);
+
             // TODO: multiply the world matrix by the original vector
             transformed_vertex =
                 mat4_mul_vec4(world_matrix, transformed_vertex);
+
+            // multiply the vector to transform the scene to camera space
+            transformed_vertex = mat4_mul_vec4(view_matrix, transformed_vertex);
 
             // Save transformed vertex in the array of transformed vertices
             transformed_vertices[j] = transformed_vertex;
@@ -179,7 +199,9 @@ void update(void) {
         vec3_normalize(&normal);
         // 3. Find the camera ray vector by subtracting the camera position
         // from point A
-        vec3_t camera_ray = vec3_sub(camera_position, vector_a);
+
+        vec3_t origin = {0, 0, 0};
+        vec3_t camera_ray = vec3_sub(origin, vector_a);
         // 4. Take the dot product between the normal N and the camera ray
         float dot_normal_camera = vec3_dot(normal, camera_ray);
         // 5. If this dot product is less than zero, then do not display the
