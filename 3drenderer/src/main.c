@@ -25,6 +25,19 @@ bool is_running = false;
 int previous_frame_time = 0;
 float delta_time = 0.0;
 
+// --- CAMERA CONTROL VARIABLES ---
+float orbit_yaw = 0.0f;
+float orbit_pitch = 0.0f;
+float orbit_distance = 5.0f;
+vec3_t camera_target = {0, 0, 0};  // Now a global variable
+
+bool is_rotating = false;  // Previously is_mouse_dragging
+bool is_panning = false;   // New flag for panning
+
+int last_mouse_x = 0;
+int last_mouse_y = 0;
+// -------------------------------
+
 void setup(void) {
     render_method = RENDER_WIRE;
     cull_method = CULL_BACKFACE;
@@ -60,34 +73,124 @@ void setup(void) {
 
     // Geometry Loading
     // load_cube_mesh_data();
-    load_obj_file_data("./assets/f117.obj");
+    load_obj_file_data("./assets/drone.obj");
 
-    load_png_texture_data("./assets/f117.png");
+    load_png_texture_data("./assets/drone.png");
 }
 
 void process_input(void) {
     SDL_Event event;
-    SDL_PollEvent(&event);
 
-    switch (event.type) {
-        case SDL_QUIT:
-            is_running = false;
-            break;
-        case SDL_KEYDOWN:
-            if (event.key.keysym.sym == SDLK_ESCAPE) is_running = false;
-            if (event.key.keysym.sym == SDLK_1)
-                render_method = RENDER_WIRE_VERTEX;
-            if (event.key.keysym.sym == SDLK_2) render_method = RENDER_WIRE;
-            if (event.key.keysym.sym == SDLK_3)
-                render_method = RENDER_FILL_TRIANGLE;
-            if (event.key.keysym.sym == SDLK_4)
-                render_method = RENDER_FILL_TRIANGLE_WIRE;
-            if (event.key.keysym.sym == SDLK_5) render_method = RENDER_TEXTURED;
-            if (event.key.keysym.sym == SDLK_6)
-                render_method = RENDER_TEXTURED_WIRE;
-            if (event.key.keysym.sym == SDLK_c) cull_method = CULL_BACKFACE;
-            if (event.key.keysym.sym == SDLK_d) cull_method = CULL_NONE;
-            break;
+    // Use a while loop to process ALL events in the queue for this frame
+    while (SDL_PollEvent(&event)) {
+        switch (event.type) {
+            case SDL_QUIT:
+                is_running = false;
+                break;
+            case SDL_KEYDOWN:
+                if (event.key.keysym.sym == SDLK_ESCAPE) is_running = false;
+                if (event.key.keysym.sym == SDLK_1)
+                    render_method = RENDER_WIRE_VERTEX;
+                if (event.key.keysym.sym == SDLK_2) render_method = RENDER_WIRE;
+                if (event.key.keysym.sym == SDLK_3)
+                    render_method = RENDER_FILL_TRIANGLE;
+                if (event.key.keysym.sym == SDLK_4)
+                    render_method = RENDER_FILL_TRIANGLE_WIRE;
+                if (event.key.keysym.sym == SDLK_5)
+                    render_method = RENDER_TEXTURED;
+                if (event.key.keysym.sym == SDLK_6)
+                    render_method = RENDER_TEXTURED_WIRE;
+                if (event.key.keysym.sym == SDLK_c) cull_method = CULL_BACKFACE;
+                if (event.key.keysym.sym == SDLK_d) cull_method = CULL_NONE;
+                if (event.key.keysym.sym == SDLK_9) {
+                    orbit_yaw = 0.0f;
+                    orbit_pitch = 0.0f;
+                    orbit_distance = 5.0f;
+                    camera_target =
+                        (vec3_t){0, 0, 0};  // Reset look-at point to origin
+                }
+                break;
+
+            // --- MOUSE EVENTS ---
+            case SDL_MOUSEBUTTONDOWN:
+                if (event.button.button == SDL_BUTTON_LEFT) {
+                    is_rotating = true;
+                    last_mouse_x = event.button.x;
+                    last_mouse_y = event.button.y;
+                }
+                if (event.button.button == SDL_BUTTON_MIDDLE) {
+                    is_panning = true;
+                    last_mouse_x = event.button.x;
+                    last_mouse_y = event.button.y;
+                }
+                break;
+
+            case SDL_MOUSEBUTTONUP:
+                if (event.button.button == SDL_BUTTON_LEFT) is_rotating = false;
+                if (event.button.button == SDL_BUTTON_MIDDLE)
+                    is_panning = false;
+                break;
+
+            case SDL_MOUSEMOTION: {
+                // Calculate mouse delta
+                int delta_x = event.motion.x - last_mouse_x;
+                int delta_y = event.motion.y - last_mouse_y;
+                last_mouse_x = event.motion.x;
+                last_mouse_y = event.motion.y;
+
+                // --- ROTATION (Left Click) ---
+                if (is_rotating) {
+                    float sensitivity = 0.005f;
+                    orbit_yaw -= delta_x * sensitivity;
+                    orbit_pitch -= delta_y * sensitivity;
+
+                    // Clamp pitch
+                    float pitch_limit = M_PI / 2.0f - 0.1f;
+                    if (orbit_pitch > pitch_limit) orbit_pitch = pitch_limit;
+                    if (orbit_pitch < -pitch_limit) orbit_pitch = -pitch_limit;
+                }
+
+                // --- PANNING (Middle Click) ---
+                if (is_panning) {
+                    // Panning speed should scale with zoom (distance)
+                    float pan_speed = orbit_distance * 0.002f;
+
+                    // 1. Calculate Camera Forward Vector (normalized)
+                    vec3_t forward = vec3_sub(camera_target, camera.position);
+                    vec3_normalize(&forward);
+
+                    // 2. Calculate Camera Right Vector
+                    vec3_t up_world = {0, 1, 0};
+                    vec3_t right = vec3_cross(
+                        up_world, forward);  // Order depends on coord system
+                    vec3_normalize(&right);
+
+                    // 3. Calculate Camera Up Vector (Orthogonal to Forward and
+                    // Right)
+                    vec3_t up_cam = vec3_cross(forward, right);
+                    vec3_normalize(&up_cam);
+
+                    // 4. Move the Target Point based on mouse movement
+                    // Drag Left (negative x) -> Move Target Left (negative
+                    // Right vector) Drag Up (negative y) -> Move Target Up
+                    // (positive Up vector)
+
+                    // Note: If panning feels inverted, flip the +/- signs here
+                    vec3_t move_right = vec3_mul(right, -delta_x * pan_speed);
+                    vec3_t move_up = vec3_mul(up_cam, -delta_y * pan_speed);
+
+                    camera_target = vec3_add(camera_target, move_right);
+                    camera_target =
+                        vec3_sub(camera_target,
+                                 move_up);  // SDL Y is down, World Y is up
+                }
+                break;
+            }
+            case SDL_MOUSEWHEEL:
+                orbit_distance -= event.wheel.y * 0.5f;
+                if (orbit_distance < 1.0f) orbit_distance = 1.0f;
+                break;
+        }
     }
 }
 
@@ -110,31 +213,29 @@ void update(void) {
         SDL_Delay(time_to_wait);
     }
 
-    // delta time factor converted to seconds to be used to update game objects
+    // delta time factor converted to seconds
     delta_time = (SDL_GetTicks() - previous_frame_time) / 1000.0;
-
     previous_frame_time = SDL_GetTicks();
 
     // reset number of triangles to 0
     num_triangles_to_render = 0;
 
-    // Change the mesh scale/rotation values per animation frame
-    mesh.rotation.x += 0.6 * delta_time;
-    mesh.rotation.y += 0.6 * delta_time;
-    mesh.rotation.z += 0.6 * delta_time;
-    mesh.translation.z = 5.0;
+    // --- 1. UPDATE CAMERA POSITION ---
+    // Calculate Cartesian position based on spherical coordinates + target
+    // offset
+    camera.position.x =
+        camera_target.x + (orbit_distance * cos(orbit_pitch) * sin(orbit_yaw));
+    camera.position.y = camera_target.y - (orbit_distance * sin(orbit_pitch));
+    camera.position.z =
+        camera_target.z - (orbit_distance * cos(orbit_pitch) * cos(orbit_yaw));
 
-    // change camera position frame by frame
-    camera.position.x += 0.0 * delta_time;
-    camera.position.y += 0.0 * delta_time;
-
-    // Create a view matrix, frame by frame looking at a hardcoded target point
-    vec3_t target = {0, 0, 4.0};
+    // --- 2. UPDATE VIEW MATRIX ---
     vec3_t up_direction = {0, 1, 0};
-    view_matrix = mat4_look_at(camera.position, target, up_direction);
 
-    // create a scale, rotation and translation matrices that will be used to
-    // multiply the mesh vertices
+    // ERROR FIX: Use the global 'camera_target', not a hardcoded {0,0,0} vector
+    view_matrix = mat4_look_at(camera.position, camera_target, up_direction);
+
+    // Create scale, rotation, and translation matrices for the mesh
     mat4_t scale_matrix =
         mat4_make_scale(mesh.scale.x, mesh.scale.y, mesh.scale.z);
     mat4_t translation_matrix = mat4_make_translation(
@@ -155,57 +256,42 @@ void update(void) {
 
         vec4_t transformed_vertices[3];
 
-        // loop all three vertices of this current face and apply
-        // transformations
-
         for (int j = 0; j < 3; j++) {
             vec4_t transformed_vertex = vec4_from_vec3(face_vertices[j]);
 
             // Create a world matrix combining scale, rotation and translation
-            // matrices
             world_matrix = mat4_identity();
-
-            // Order matters: First scale, rotate, translate [S] * [R] * [T] * v
             world_matrix = mat4_mul_mat4(scale_matrix, world_matrix);
             world_matrix = mat4_mul_mat4(rotation_matrix_z, world_matrix);
             world_matrix = mat4_mul_mat4(rotation_matrix_y, world_matrix);
             world_matrix = mat4_mul_mat4(rotation_matrix_x, world_matrix);
             world_matrix = mat4_mul_mat4(translation_matrix, world_matrix);
 
-            // TODO: multiply the world matrix by the original vector
             transformed_vertex =
                 mat4_mul_vec4(world_matrix, transformed_vertex);
-
-            // multiply the vector to transform the scene to camera space
             transformed_vertex = mat4_mul_vec4(view_matrix, transformed_vertex);
 
-            // Save transformed vertex in the array of transformed vertices
             transformed_vertices[j] = transformed_vertex;
         }
 
-        // TODO: Check backface culling
-        // Note: We defined Clock-wise vertex numbering for our engine
-        // 1. Find vectors B-A and C-A
-        vec3_t vector_a = vec3_from_vec4(transformed_vertices[0]); /*    A   */
-        vec3_t vector_b = vec3_from_vec4(transformed_vertices[1]); /*   / \  */
-        vec3_t vector_c = vec3_from_vec4(transformed_vertices[2]); /*  C---B */
+        // --- BACKFACE CULLING ---
+        vec3_t vector_a = vec3_from_vec4(transformed_vertices[0]); /* A   */
+        vec3_t vector_b = vec3_from_vec4(transformed_vertices[1]); /* / \  */
+        vec3_t vector_c = vec3_from_vec4(transformed_vertices[2]); /* C---B */
 
-        // Get vector sub of B-A and C-A
         vec3_t vector_ab = vec3_sub(vector_b, vector_a);
         vec3_t vector_ac = vec3_sub(vector_c, vector_a);
+        vec3_normalize(&vector_ab);
+        vec3_normalize(&vector_ac);
 
-        // 2. Take their cross product and find the perpendicular normal N
         vec3_t normal = vec3_cross(vector_ab, vector_ac);
         vec3_normalize(&normal);
-        // 3. Find the camera ray vector by subtracting the camera position
-        // from point A
 
         vec3_t origin = {0, 0, 0};
         vec3_t camera_ray = vec3_sub(origin, vector_a);
-        // 4. Take the dot product between the normal N and the camera ray
+
         float dot_normal_camera = vec3_dot(normal, camera_ray);
-        // 5. If this dot product is less than zero, then do not display the
-        // face
+
         if (cull_method == CULL_BACKFACE) {
             if (dot_normal_camera < 0) {
                 continue;
@@ -215,27 +301,20 @@ void update(void) {
         // Loop all three vertices to perform projection
         vec4_t projected_points[3];
         for (int j = 0; j < 3; j++) {
-            // project the current vertex
             projected_points[j] =
                 mat4_mul_vec4_project(proj_matrix, transformed_vertices[j]);
+
             // scale into viewport
             projected_points[j].y *= -1;
-
             projected_points[j].x *= (window_width / 2.0);
             projected_points[j].y *= (window_height / 2.0);
-            // translate the projected points to the middle of the screen
+
+            // translate to center
             projected_points[j].x += (window_width / 2.0);
             projected_points[j].y += (window_height / 2.0);
         }
 
-        // calculate the shade intensity based on how aligned ois the face
-        // normal and the light
-        float light_intensity_factor =
-            -1 * vec3_dot(normal,
-                          light.direction);  // fixing the light intensity
-                                             // factor to point inwards with -1
-
-        // calculate the triangle color based on light angle
+        float light_intensity_factor = -1 * vec3_dot(normal, light.direction);
         uint32_t triangle_color =
             light_apply_intensity(mesh_face.color, light_intensity_factor);
 
@@ -248,7 +327,6 @@ void update(void) {
                      projected_points[1].z, projected_points[1].w},
                     {projected_points[2].x, projected_points[2].y,
                      projected_points[2].z, projected_points[2].w},
-
                 },
             .texcoords = {{mesh_face.a_uv.u, mesh_face.a_uv.v},
                           {mesh_face.b_uv.u, mesh_face.b_uv.v},
@@ -256,7 +334,6 @@ void update(void) {
             .color = triangle_color,
         };
 
-        // save projected triangle to the array of triangles to render
         if (num_triangles_to_render < MAX_TRIANGLES_PER_MESH) {
             triangles_to_render[num_triangles_to_render] = projected_triangle;
             num_triangles_to_render++;
