@@ -4,18 +4,18 @@
       "name": "macos-clang-arm64",
       "includePath": [
         "${workspaceFolder}/**",
-        "/opt/homebrew/include"
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include",
+        "/opt/homebrew/include",
+        "/Library/Developer/CommandLineTools/usr/lib/clang/17/include"
       ],
+      "defines": [],
       "macFrameworkPath": [
-        "/opt/homebrew/lib"
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
       ],
       "compilerPath": "/usr/bin/clang",
-      "cStandard": "${default}",
-      "cppStandard": "${default}",
-      "intelliSenseMode": "macos-clang-arm64",
-      "compilerArgs": [
-        ""
-      ]
+      "cStandard": "c17",
+      "cppStandard": "c++17",
+      "intelliSenseMode": "macos-clang-arm64"
     }
   ],
   "version": 4

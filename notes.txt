@@ -1,0 +1,30 @@
+Rendering pipeline:
+
+Model Space
+|    Everything starts in model space. Raw local coordinates for the models (ie. Blender, Maya, etc..)
+v
+World Space
+|    Positioning the 3d model in the correct place in the world (affine transformations - rotation, translation, scaling).
+v
+Camera Space
+|    Translate and rotate so the center coordinate system is the eye (camera), +Z grows inside monitor (depending on handedness)
+|
+(Backface Culling)
+|    Cull elements using z-buffer
+v
+Frustum Clipping
+|    Clip Top/Bot/Left/Right/Near/Far
+v
+Projection
+|    Projecting the elements from 
+| -----------------------------------------> CLIPPING SPACE USUALLY HAPPENS HERE (most renderers will perform clipping after projection and before perspective divide)
+(Perspective Divide)
+|    x/w, y/w, z/w, w
+v
+Image Space (NDC)
+|    Normalized Device Coordinates (cube -1 to 1 for each face)
+v
+Screen Space
+|    Where the user sees 3d perspective graphics
+v
+User
