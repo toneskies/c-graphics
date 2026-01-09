@@ -4,6 +4,7 @@
 
 #include "array.h"
 #include "camera.h"
+#include "clipping.h"
 #include "display.h"
 #include "light.h"
 #include "matrix.h"
@@ -53,16 +54,12 @@ void setup(void) {
     float zfar = 100.0;
     proj_matrix = mat4_make_perspective(fov, aspect, znear, zfar);
 
-    // manually load the hardcoded texture data from static array
-    // mesh_texture = (uint32_t*)REDBRICK_TEXTURE;
-    // texture_width = 64;
-    // texture_height = 64;
+    // initialize frustum
+    init_frustum_planes(fov, znear, zfar);
 
-    // Geometry Loading
-    // load_cube_mesh_data();
-    load_obj_file_data("./assets/f117.obj");
+    load_obj_file_data("./assets/cube.obj");
 
-    load_png_texture_data("./assets/f117.png");
+    load_png_texture_data("./assets/cube.png");
 }
 
 void process_input(void) {
@@ -232,6 +229,25 @@ void update(void) {
                 continue;
             }
         }
+
+        // TODO: CLIPPING
+        // create a polygon from original transformed triangle to be clipped
+        polygon_t polygon = create_polygon_from_triangle(
+            vec3_from_vec4(transformed_vertices[0]),
+            vec3_from_vec4(transformed_vertices[1]),
+            vec3_from_vec4(transformed_vertices[2]));
+
+        // clip the polygon and return a new polygon with potential new vertices
+        clip_polygon(&polygon);
+
+        // TODO: after clipping, break the polygon into triangles
+        triangle_t triangles_after_clipping[MAX_NUM_POLY_TRIANGLES];
+        int num_triangles_after_clipping = 0;
+
+        triangles_from_polygon(&polygon, triangles_after_clipping,
+                               &num_triangles_after_clipping);
+        // Here we will have the array of triangles and also the num of
+        // triangles
 
         // Loop all three vertices to perform projection
         vec4_t projected_points[3];

@@ -3,6 +3,10 @@
 #include <math.h>
 
 // Implementation of Vector 2D Functions
+vec2_t vec2_new(float x, float y) {
+    vec2_t result = {x, y};
+    return result;
+}
 float vec2_length(vec2_t v) { return sqrt(v.x * v.x + v.y * v.y); }
 vec2_t vec2_add(vec2_t a, vec2_t b) {
     vec2_t res = {.x = a.x + b.x, .y = a.y + b.y};
@@ -30,6 +34,16 @@ void vec2_normalize(vec2_t* a) {
 }
 
 // Implementation of Vector 3D Functions
+vec3_t vec3_new(float x, float y, float z) {
+    vec3_t result = {x, y, z};
+    return result;
+}
+
+vec3_t vec3_clone(vec3_t* v) {
+    vec3_t result = {v->x, v->y, v->z};
+    return result;
+}
+
 float vec3_length(vec3_t v) { return sqrt(v.x * v.x + v.y * v.y + v.z * v.z); }
 vec3_t vec3_add(vec3_t a, vec3_t b) {
     vec3_t res = {.x = a.x + b.x, .y = a.y + b.y, .z = a.z + b.z};
