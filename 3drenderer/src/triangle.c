@@ -39,6 +39,14 @@ void draw_filled_triangle(int x0, int y0, float z0, float w0, int x1, int y1,
     vec2_t point_b = {x1, y1};
     vec2_t point_c = {x2, y2};
 
+    float area = (point_b.x - point_a.x) * (point_c.y - point_a.y) -
+                 (point_b.y - point_a.y) * (point_c.x - point_a.x);
+
+    // Safety exit if triangle is too small/degenerate
+    if (fabs(area) < 1.0) {
+        return;
+    }
+
     // 2. Render the Upper Part (Flat-Bottom)
     float inv_slope_1 = 0;
     float inv_slope_2 = 0;
@@ -144,16 +152,9 @@ vec3_t barycentric_weights(vec2_t a, vec2_t b, vec2_t c, vec2_t p) {
     return weights;
 }
 
-// In src/triangle.c
-
 void draw_texel(int x, int y, upng_t* texture, vec4_t point_a, vec4_t point_b,
                 vec4_t point_c, tex2_t a_uv, tex2_t b_uv, tex2_t c_uv) {
-    // DEBUG: Check if texture exists
-    if (texture == NULL) {
-        printf(
-            "[CRITICAL] Texture pointer is NULL! (Mesh texture not loaded?)\n");
-        return;
-    }
+    if (texture == NULL) return;
 
     vec2_t p = {x, y};
     vec2_t a = vec2_from_vec4(point_a);
@@ -178,44 +179,56 @@ void draw_texel(int x, int y, upng_t* texture, vec4_t point_a, vec4_t point_b,
                                 (1 / point_b.w) * beta +
                                 (1 / point_c.w) * gamma;
 
-    // DEBUG: Check for divide by zero or extreme W values
     if (interpolated_reciprocal_w < 0.000001 &&
         interpolated_reciprocal_w > -0.000001) {
-        printf("[WARN] Reciprocal W is too close to zero: %f at pixel %d,%d\n",
-               interpolated_reciprocal_w, x, y);
-        fflush(stdout);
-
-        return;
+        interpolated_u = 0;
+        interpolated_v = 0;
+    } else {
+        interpolated_u /= interpolated_reciprocal_w;
+        interpolated_v /= interpolated_reciprocal_w;
     }
-
-    interpolated_u /= interpolated_reciprocal_w;
-    interpolated_v /= interpolated_reciprocal_w;
 
     int texture_width = upng_get_width(texture);
     int texture_height = upng_get_height(texture);
 
-    // Fix 3: Handle Integer Overflow / Undefined Behavior
-    // Cast to long long to prevent overflow before modulo
     int tex_x = abs((int)(interpolated_u * texture_width)) % texture_width;
     int tex_y = abs((int)(interpolated_v * texture_height)) % texture_height;
 
-    // Fix 4: Validate Buffer Exists
-    uint32_t* texture_buffer = (uint32_t*)upng_get_buffer(texture);
-    if (texture_buffer == NULL) return;
+    // --- FIX START ---
+    // 1. Get the raw buffer as bytes (generic void*)
+    void* raw_buffer = (void*)upng_get_buffer(texture);
+    if (raw_buffer == NULL) return;
 
-    // Fix 5: Calculate Index AFTER Modulo/Abs
-    // (Your previous code calculated index before ensuring tex_x was positive)
+    // 2. Check the format (RGB vs RGBA)
+    upng_format format = upng_get_format(texture);
+    uint32_t color = 0xFFFFFFFF;
     int index = texture_width * tex_y + tex_x;
-    int buffer_size = texture_width * texture_height;
 
-    if (index < 0 || index >= buffer_size) {
+    if (format == UPNG_RGBA8) {
+        // 32-bit read (4 bytes per pixel)
+        uint32_t* buffer_32 = (uint32_t*)raw_buffer;
+        color = buffer_32[index];
+    } else if (format == UPNG_RGB8) {
+        // 24-bit read (3 bytes per pixel)
+        unsigned char* buffer_8 = (unsigned char*)raw_buffer;
+        int byte_offset = index * 3;
+
+        uint8_t r = buffer_8[byte_offset];
+        uint8_t g = buffer_8[byte_offset + 1];
+        uint8_t b = buffer_8[byte_offset + 2];
+
+        // Reconstruct 32-bit ARGB color (Alpha = 0xFF)
+        color = (0xFF << 24) | (r << 16) | (g << 8) | b;
+    } else {
+        // Unsupported format, skip
         return;
     }
+    // --- FIX END ---
 
     interpolated_reciprocal_w = 1.0 - interpolated_reciprocal_w;
 
     if (interpolated_reciprocal_w < get_zbuffer_at(x, y)) {
-        draw_pixel(x, y, texture_buffer[index]);
+        draw_pixel(x, y, color);
         update_zbuffer_at(x, y, interpolated_reciprocal_w);
     }
 }

@@ -43,6 +43,12 @@ void clip_polygon(polygon_t* polygon) {
 }
 
 void clip_polygon_against_plane(polygon_t* polygon, int plane) {
+    // FIX: If the polygon is already empty (fully clipped by previous planes),
+    // do nothing.
+    if (polygon->num_vertices == 0) {
+        return;
+    }
+
     vec3_t plane_point = frustum_planes[plane].point;
     vec3_t plane_normal = frustum_planes[plane].normal;
 
@@ -78,10 +84,8 @@ void clip_polygon_against_plane(polygon_t* polygon, int plane) {
             // DEBUG: Check for division by zero in T calculation
             float denom = (previous_dot - current_dot);
             if (denom == 0.0f) {
-                printf(
-                    "[CLIPPING ERROR] Division by zero in clipping "
-                    "interpolation!\n");
-                fflush(stdout);
+                // printf("[CLIPPING ERROR] Division by zero in clipping
+                // interpolation!\n"); fflush(stdout);
                 denom = 0.0001f;  // Prevent crash
             }
 
@@ -92,9 +96,8 @@ void clip_polygon_against_plane(polygon_t* polygon, int plane) {
 
             // DEBUG: Check if T is within valid range [0, 1]
             if (t < 0.0f || t > 1.0f) {
-                printf("[CLIPPING WARN] T is out of bounds: %f. Plane: %d\n", t,
-                       plane);
-                fflush(stdout);
+                // printf("[CLIPPING WARN] T is out of bounds: %f. Plane: %d\n",
+                // t, plane); fflush(stdout);
             }
 
             vec3_t intersection_point = {
@@ -133,8 +136,8 @@ void clip_polygon_against_plane(polygon_t* polygon, int plane) {
         current_vertex++;  // pointer arithmetic
         current_texcoord++;
     }
-    // TODO: copy all the vertices from the inside_vertices into the destination
-    // polygon (out param)
+
+    // copy all the vertices from the inside_vertices into the destination
     for (int i = 0; i < num_inside_vertices; i++) {
         polygon->vertices[i] = vec3_clone(&inside_vertices[i]);
         polygon->texcoords[i] = tex2_clone(&inside_texcoords[i]);

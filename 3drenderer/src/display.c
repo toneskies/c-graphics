@@ -47,8 +47,8 @@ bool initialize_window(void) {
     // Use SDL to query what is the fullscreen max. width and height
     SDL_DisplayMode display_mode;
     SDL_GetCurrentDisplayMode(0, &display_mode);
-    int fullscreen_width = display_mode.w;
-    int fullscreen_height = display_mode.h;
+    // int fullscreen_width = display_mode.w;
+    // int fullscreen_height = display_mode.h;
 
     // window_width = fullscreen_width / 3;
     // window_height = fullscreen_height / 3;

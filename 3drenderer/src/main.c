@@ -64,7 +64,7 @@ void update_projection_matrix(void) {
         // logic to effectively disable side-clipping, since the standard
         // init_frustum_planes creates a pyramid. We only care about
         // Near/Far clipping in Ortho here.
-        float wide_fov = 3.141592 * (170.0 / 180.0);
+        // float wide_fov = 3.141592 * (170.0 / 180.0);
         init_frustum_planes_ortho(left, right, top, bottom, znear, zfar);
     }
 }
@@ -352,14 +352,20 @@ void process_graphics_pipeline_stages(mesh_t* mesh) {
 
         // clip the polygon and return a new polygon with potential new
         // vertices
+        // Clip the polygon
         clip_polygon(&polygon);
 
-        // TODO: after clipping, break the polygon into triangles
+        // --- SAFETY CHECK START ---
+        // If clipping removed all vertices, break the polygon into 0 triangles
+        if (polygon.num_vertices < 3) {
+            continue;  // Skip this face entirely
+        }
+        // --- SAFETY CHECK END ---
+
+        // Break the polygon into triangles
         triangle_t triangles_after_clipping[MAX_NUM_POLY_TRIANGLES];
         int num_triangles_after_clipping = 0;
 
-        // Here we will have the array of triangles and also the num of
-        // triangles
         triangles_from_polygon(&polygon, triangles_after_clipping,
                                &num_triangles_after_clipping);
 
