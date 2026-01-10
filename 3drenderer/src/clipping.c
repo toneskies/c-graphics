@@ -1,6 +1,7 @@
 #include "clipping.h"
 
 #include <math.h>
+#include <stdio.h>
 
 #define NUM_PLANES 6
 plane_t frustum_planes[NUM_PLANES];
@@ -67,37 +68,59 @@ void clip_polygon_against_plane(polygon_t* polygon, int plane) {
     while (current_vertex != &polygon->vertices[polygon->num_vertices]) {
         current_dot =
             vec3_dot(vec3_sub(*current_vertex, plane_point), plane_normal);
+
+        if (num_inside_vertices >= MAX_NUM_POLY_VERTICES) {
+            break;
+        }
+
         // if we change from inside to outside or vice-versa
         if (current_dot * previous_dot < 0) {
-            // TODO: calculate the interpolation factor, t = dotQ1 / (dotQ1 -
-            // dotQ2)
-            float t = previous_dot / (previous_dot - current_dot);
-            // TODO: calculate the intersection point, I = Q1 + t(Q2 - Q1)
+            // DEBUG: Check for division by zero in T calculation
+            float denom = (previous_dot - current_dot);
+            if (denom == 0.0f) {
+                printf(
+                    "[CLIPPING ERROR] Division by zero in clipping "
+                    "interpolation!\n");
+                fflush(stdout);
+                denom = 0.0001f;  // Prevent crash
+            }
+
+            float t = previous_dot / denom;
+
+            // DEBUG: Check if T is within valid range [0, 1]
+            if (t < 0.0f || t > 1.0f) {
+                printf("[CLIPPING WARN] T is out of bounds: %f. Plane: %d\n", t,
+                       plane);
+                fflush(stdout);
+            }
+
             vec3_t intersection_point = {
                 .x = float_lerp(previous_vertex->x, current_vertex->x, t),
                 .y = float_lerp(previous_vertex->y, current_vertex->y, t),
                 .z = float_lerp(previous_vertex->z, current_vertex->z, t)};
 
-            // Use the lerp formula to get the interpolated U and V texture
-            // coordinates
             tex2_t interpolated_texcoord = {
                 .u = float_lerp(previous_texcoord->u, current_texcoord->u, t),
                 .v = float_lerp(previous_texcoord->v, current_texcoord->v, t)};
 
-            inside_vertices[num_inside_vertices] =
-                vec3_clone(&intersection_point);
-            inside_texcoords[num_inside_vertices] =
-                tex2_clone(&interpolated_texcoord);
-            num_inside_vertices++;
+            if (num_inside_vertices < MAX_NUM_POLY_VERTICES) {
+                inside_vertices[num_inside_vertices] =
+                    vec3_clone(&intersection_point);
+                inside_texcoords[num_inside_vertices] =
+                    tex2_clone(&interpolated_texcoord);
+                num_inside_vertices++;
+            }
         }
 
         // if current point is inside the plane
         if (current_dot > 0) {
-            inside_vertices[num_inside_vertices] = vec3_clone(current_vertex);
-            inside_texcoords[num_inside_vertices] =
-                tex2_clone(current_texcoord);
-
-            num_inside_vertices++;
+            if (num_inside_vertices < MAX_NUM_POLY_VERTICES) {
+                inside_vertices[num_inside_vertices] =
+                    vec3_clone(current_vertex);
+                inside_texcoords[num_inside_vertices] =
+                    tex2_clone(current_texcoord);
+                num_inside_vertices++;
+            }
         }
 
         // move to the next vertex

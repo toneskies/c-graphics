@@ -14,7 +14,7 @@
 #include "upng.h"
 #include "vector.h"
 
-#define MAX_TRIANGLES_PER_MESH 10000
+#define MAX_TRIANGLES_PER_MESH 100000
 triangle_t triangles_to_render[MAX_TRIANGLES_PER_MESH];
 int num_triangles_to_render = 0;
 
@@ -132,24 +132,25 @@ void setup(void) {
     projection_type = PROJ_PERSPECTIVE;
     orbit_radius = 5.0;
 
-    // load_mesh("./assets/terrain.obj", "./assets/terrain.png",
-    //           vec3_new(0.5, 0.5, 0.5), vec3_new(0, -20.0, 0),
-    //           vec3_new(M_PI / 2, 0, 0));
-    // load_mesh("./assets/f22.obj", "./assets/f22.png", vec3_new(1, 1, 1),
-    //           vec3_new(0, 0, +5), vec3_new(0, 0, 0));
-    // load_mesh("./assets/efa.obj", "./assets/efa.png", vec3_new(1, 1, 1),
-    //           vec3_new(-2, 0, +9), vec3_new(0, 0, 0));
-    // load_mesh("./assets/f117.obj", "./assets/f117.png", vec3_new(1, 1, 1),
-    //           vec3_new(+2, 0, +9), vec3_new(0, 0, 0));
-
-    load_mesh("./assets/runway.obj", "./assets/runway.png", vec3_new(1, 1, 1),
-              vec3_new(0, -1.5, +23), vec3_new(0, 0, 0));
+    load_mesh("./assets/terrain.obj", "./assets/terrain.png",
+              vec3_new(0.5, 0.5, 0.5), vec3_new(0, -20.0, 0),
+              vec3_new(M_PI / 2, 0, 0));
     load_mesh("./assets/f22.obj", "./assets/f22.png", vec3_new(1, 1, 1),
-              vec3_new(0, -1.3, +5), vec3_new(0, -M_PI / 2, 0));
+              vec3_new(0, 0, +5), vec3_new(0, 0, 0));
     load_mesh("./assets/efa.obj", "./assets/efa.png", vec3_new(1, 1, 1),
-              vec3_new(-2, -1.3, +9), vec3_new(0, -M_PI / 2, 0));
+              vec3_new(-2, 0, +9), vec3_new(0, 0, 0));
     load_mesh("./assets/f117.obj", "./assets/f117.png", vec3_new(1, 1, 1),
-              vec3_new(+2, -1.3, +9), vec3_new(0, -M_PI / 2, 0));
+              vec3_new(+2, 0, +9), vec3_new(0, 0, 0));
+
+    // load_mesh("./assets/runway.obj", "./assets/runway.png", vec3_new(1, 1,
+    // 1),
+    //           vec3_new(0, -1.5, +23), vec3_new(0, 0, 0));
+    // load_mesh("./assets/f22.obj", "./assets/f22.png", vec3_new(1, 1, 1),
+    //           vec3_new(0, -1.3, +5), vec3_new(0, -M_PI / 2, 0));
+    // load_mesh("./assets/efa.obj", "./assets/efa.png", vec3_new(1, 1, 1),
+    //           vec3_new(-2, -1.3, +9), vec3_new(0, -M_PI / 2, 0));
+    // load_mesh("./assets/f117.obj", "./assets/f117.png", vec3_new(1, 1, 1),
+    //           vec3_new(+2, -1.3, +9), vec3_new(0, -M_PI / 2, 0));
 
     // fit_camera_to_mesh();  // This will also call update_projection_matrix
     update_projection_matrix();
@@ -252,7 +253,6 @@ void process_input(void) {
                     update_projection_matrix();
                 }
                 break;
-                // ORBIT CONTROLS END
         }
     }
 }
@@ -439,46 +439,33 @@ void update(void) {
     // Wait some time until the reach the target frame time in milliseconds
     int time_to_wait =
         FRAME_TARGET_TIME - (SDL_GetTicks() - previous_frame_time);
-
-    // Only delay execution if we are running too fast
     if (time_to_wait > 0 && time_to_wait <= FRAME_TARGET_TIME) {
         SDL_Delay(time_to_wait);
     }
-
-    // delta time factor converted to seconds to be used to update game
-    // objects
     delta_time = (SDL_GetTicks() - previous_frame_time) / 1000.0;
-
     previous_frame_time = SDL_GetTicks();
 
-    // reset number of triangles to 0
     num_triangles_to_render = 0;
-
-    // mesh.translation.z = 5.0;
 
     if (projection_type == PROJ_ORTHOGRAPHIC) {
         orbit_radius = ORTHO_CAMERA_DISTANCE;
     }
-
-    // THIS IS THE ORBIT CONTROLS
     camera.position.x = orbit_radius * cos(orbit_phi) * sin(orbit_theta);
     camera.position.y = orbit_radius * sin(orbit_phi);
     camera.position.z = orbit_radius * cos(orbit_phi) * cos(orbit_theta);
 
-    // look at mesh
     vec3_t target = {0, 0, 5.0};  // align with mesh.translation.z
-
-    // offset camera position by target
     camera.position = vec3_add(camera.position, target);
     vec3_t up_direction = {0, 1, 0};
 
-    // create view matrix
     view_matrix = mat4_look_at(camera.position, target, up_direction);
 
     // loop all the meshes in our scene
     for (int mesh_index = 0; mesh_index < get_num_meshes(); mesh_index++) {
         mesh_t* mesh = get_mesh(mesh_index);
 
+        mesh_t* fighter = get_mesh(1);
+        fighter->rotation.y = sin((SDL_GetTicks() / 1000.0f) * 2.0f) * 1.0f;
         process_graphics_pipeline_stages(mesh);
     }
 }

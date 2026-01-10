@@ -67,8 +67,6 @@ void draw_filled_triangle(int x0, int y0, float z0, float w0, int x1, int y1,
                 float interpolated_reciprocal_w =
                     (1 / w0) * alpha + (1 / w1) * beta + (1 / w2) * gamma;
 
-                // Adjust 1/w so pixels closer to camera have smaller values
-                // (Matches the logic in your draw_texel function)
                 interpolated_reciprocal_w = 1.0 - interpolated_reciprocal_w;
 
                 // Only draw pixel if depth is closer than what's in Z-buffer
@@ -146,11 +144,17 @@ vec3_t barycentric_weights(vec2_t a, vec2_t b, vec2_t c, vec2_t p) {
     return weights;
 }
 
-// function to draw textured pixel at position x and y using interpolation
-void draw_texel(int x, int y, upng_t* texture, vec4_t point_a, vec4_t point_b,
-                vec4_t point_c, tex2_t a_uv, tex2_t b_uv, tex2_t c_uv
+// In src/triangle.c
 
-) {
+void draw_texel(int x, int y, upng_t* texture, vec4_t point_a, vec4_t point_b,
+                vec4_t point_c, tex2_t a_uv, tex2_t b_uv, tex2_t c_uv) {
+    // DEBUG: Check if texture exists
+    if (texture == NULL) {
+        printf(
+            "[CRITICAL] Texture pointer is NULL! (Mesh texture not loaded?)\n");
+        return;
+    }
+
     vec2_t p = {x, y};
     vec2_t a = vec2_from_vec4(point_a);
     vec2_t b = vec2_from_vec4(point_b);
@@ -161,50 +165,66 @@ void draw_texel(int x, int y, upng_t* texture, vec4_t point_a, vec4_t point_b,
     float beta = weights.y;
     float gamma = weights.z;
 
-    // variables to store interpolated values of U, V and 1/W
     float interpolated_u;
     float interpolated_v;
     float interpolated_reciprocal_w;
 
-    // perform the interpolation of all U/w and V/w values using barycentric
-    // weights and factor of 1/2
     interpolated_u = (a_uv.u / point_a.w) * alpha +
                      (b_uv.u / point_b.w) * beta + (c_uv.u / point_c.w) * gamma;
     interpolated_v = (a_uv.v / point_a.w) * alpha +
                      (b_uv.v / point_b.w) * beta + (c_uv.v / point_c.w) * gamma;
 
-    // interpolate value of 1/w for current pixel
     interpolated_reciprocal_w = (1 / point_a.w) * alpha +
                                 (1 / point_b.w) * beta +
                                 (1 / point_c.w) * gamma;
 
-    // divide by 1/w on interpolated values to reverse the reciprocal
+    // DEBUG: Check for divide by zero or extreme W values
+    if (interpolated_reciprocal_w < 0.000001 &&
+        interpolated_reciprocal_w > -0.000001) {
+        printf("[WARN] Reciprocal W is too close to zero: %f at pixel %d,%d\n",
+               interpolated_reciprocal_w, x, y);
+        fflush(stdout);
+
+        return;
+    }
+
     interpolated_u /= interpolated_reciprocal_w;
     interpolated_v /= interpolated_reciprocal_w;
 
-    // get mesh texture width and height
     int texture_width = upng_get_width(texture);
     int texture_height = upng_get_height(texture);
 
-    // map the UV coordinate to the full texture width and height
     int tex_x = abs((int)(interpolated_u * texture_width)) % texture_width;
     int tex_y = abs((int)(interpolated_v * texture_height)) % texture_height;
 
-    // adjust 1/w so the pixels that are closer to the camera have smaller
-    // values
-    interpolated_reciprocal_w = 1 - interpolated_reciprocal_w;
+    // DEBUG: Catch Out-of-Bounds Access
+    int index = texture_width * tex_y + tex_x;
+    int buffer_size = texture_width * texture_height;
 
-    // only draw pixel if the depth value is less than the one previously
-    // stored
-    // in z_buffer
+    tex_x =
+        (tex_x < 0) ? 0 : (tex_x >= texture_width ? texture_width - 1 : tex_x);
+    tex_y = (tex_y < 0)
+                ? 0
+                : (tex_y >= texture_height ? texture_height - 1 : tex_y);
+
+    if (index < 0 || index >= buffer_size) {
+        printf("[CRITICAL] Texture Access Violation!\n");
+        printf("  Pixel: (%d, %d)\n", x, y);
+        printf("  Texture Size: %dx%d (Buffer Size: %d)\n", texture_width,
+               texture_height, buffer_size);
+        printf("  Calculated Index: %d (tex_x: %d, tex_y: %d)\n", index, tex_x,
+               tex_y);
+        printf("  Interpolated UV: (%f, %f)\n", interpolated_u, interpolated_v);
+        printf("  1/W: %f\n", interpolated_reciprocal_w);
+        fflush(stdout);
+        return;  // PREVENT SEGFAULT
+    }
+
+    interpolated_reciprocal_w = 1.0 - interpolated_reciprocal_w;
+
     if (interpolated_reciprocal_w < get_zbuffer_at(x, y)) {
-        // get the buffer of colors from texture
-        uint32_t* texture_buffer = upng_get_buffer(texture);
-
-        // traverse texture source and fetch color for that pixel
-        draw_pixel(x, y, texture_buffer[texture_width * tex_y + tex_x]);
-
-        // update the z buffer value with the 1/w of this current pixel
+        uint32_t* texture_buffer = (uint32_t*)upng_get_buffer(texture);
+        draw_pixel(x, y, texture_buffer[index]);
         update_zbuffer_at(x, y, interpolated_reciprocal_w);
     }
 }

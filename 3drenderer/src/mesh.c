@@ -72,7 +72,11 @@ void load_mesh_png_data(mesh_t* mesh, char* png_filename) {
         upng_decode(png_image);
         if (upng_get_error(png_image) == UPNG_EOK) {
             mesh->texture = png_image;
+        } else {
+            printf("Error decoding PNG: %s\n", png_filename);  // Debug print
         }
+    } else {
+        printf("Failed to load PNG file: %s\n", png_filename);  // Debug print
     }
 }
 

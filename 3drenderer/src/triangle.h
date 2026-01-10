@@ -2,6 +2,7 @@
 #define TRIANGLE_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 #include "texture.h"
 #include "upng.h"
