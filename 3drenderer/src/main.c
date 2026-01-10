@@ -40,7 +40,7 @@ void update_projection_matrix(void) {
     float aspect_ratio = (float)get_window_width() / (float)get_window_height();
     float znear = 0.1;
     float zfar =
-        100.0;  // Increased ZFar to prevent clipping the back of the mesh
+        400.0;  // Increased ZFar to prevent clipping the back of the mesh
 
     if (projection_type == PROJ_PERSPECTIVE) {
         float fovy = 3.141592 / 3.0;  // 60 degrees
@@ -132,12 +132,27 @@ void setup(void) {
     projection_type = PROJ_PERSPECTIVE;
     orbit_radius = 5.0;
 
-    load_mesh("./assets/f22.obj", "./assets/f22.png", vec3_new(1, 1, 1),
-              vec3_new(-3, 0, 5), vec3_new(0, 0, 0));
-    load_mesh("./assets/efa.obj", "./assets/efa.png", vec3_new(1, 1, 1),
-              vec3_new(+3, 0, 5), vec3_new(0, 0, 0));
+    // load_mesh("./assets/terrain.obj", "./assets/terrain.png",
+    //           vec3_new(0.5, 0.5, 0.5), vec3_new(0, -20.0, 0),
+    //           vec3_new(M_PI / 2, 0, 0));
+    // load_mesh("./assets/f22.obj", "./assets/f22.png", vec3_new(1, 1, 1),
+    //           vec3_new(0, 0, +5), vec3_new(0, 0, 0));
+    // load_mesh("./assets/efa.obj", "./assets/efa.png", vec3_new(1, 1, 1),
+    //           vec3_new(-2, 0, +9), vec3_new(0, 0, 0));
+    // load_mesh("./assets/f117.obj", "./assets/f117.png", vec3_new(1, 1, 1),
+    //           vec3_new(+2, 0, +9), vec3_new(0, 0, 0));
 
-    fit_camera_to_mesh();  // This will also call update_projection_matrix
+    load_mesh("./assets/runway.obj", "./assets/runway.png", vec3_new(1, 1, 1),
+              vec3_new(0, -1.5, +23), vec3_new(0, 0, 0));
+    load_mesh("./assets/f22.obj", "./assets/f22.png", vec3_new(1, 1, 1),
+              vec3_new(0, -1.3, +5), vec3_new(0, -M_PI / 2, 0));
+    load_mesh("./assets/efa.obj", "./assets/efa.png", vec3_new(1, 1, 1),
+              vec3_new(-2, -1.3, +9), vec3_new(0, -M_PI / 2, 0));
+    load_mesh("./assets/f117.obj", "./assets/f117.png", vec3_new(1, 1, 1),
+              vec3_new(+2, -1.3, +9), vec3_new(0, -M_PI / 2, 0));
+
+    // fit_camera_to_mesh();  // This will also call update_projection_matrix
+    update_projection_matrix();
 }
 
 void process_input(void) {
