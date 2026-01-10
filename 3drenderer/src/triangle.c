@@ -307,3 +307,22 @@ void draw_textured_triangle(int x0, int y0, float z0, float w0, float u0,
         }
     }
 }
+
+vec3_t get_triangle_normal(vec4_t vertices[3]) {
+    // TODO: Check backface culling
+    // Note: We defined Clock-wise vertex numbering for our engine
+    // 1. Find vectors B-A and C-A
+    vec3_t vector_a = vec3_from_vec4(vertices[0]); /* A   */
+    vec3_t vector_b = vec3_from_vec4(vertices[1]); /* / \  */
+    vec3_t vector_c = vec3_from_vec4(vertices[2]); /* C---B */
+
+    // Get vector sub of B-A and C-A
+    vec3_t vector_ab = vec3_sub(vector_b, vector_a);
+    vec3_t vector_ac = vec3_sub(vector_c, vector_a);
+
+    // 2. Take their cross product and find the perpendicular normal N
+    vec3_t normal = vec3_cross(vector_ab, vector_ac);
+    vec3_normalize(&normal);
+
+    return normal;
+}
