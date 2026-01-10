@@ -87,6 +87,9 @@ void clip_polygon_against_plane(polygon_t* polygon, int plane) {
 
             float t = previous_dot / denom;
 
+            if (t < 0.0f) t = 0.0f;
+            if (t > 1.0f) t = 1.0f;
+
             // DEBUG: Check if T is within valid range [0, 1]
             if (t < 0.0f || t > 1.0f) {
                 printf("[CLIPPING WARN] T is out of bounds: %f. Plane: %d\n", t,

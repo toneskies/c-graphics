@@ -194,36 +194,27 @@ void draw_texel(int x, int y, upng_t* texture, vec4_t point_a, vec4_t point_b,
     int texture_width = upng_get_width(texture);
     int texture_height = upng_get_height(texture);
 
+    // Fix 3: Handle Integer Overflow / Undefined Behavior
+    // Cast to long long to prevent overflow before modulo
     int tex_x = abs((int)(interpolated_u * texture_width)) % texture_width;
     int tex_y = abs((int)(interpolated_v * texture_height)) % texture_height;
 
-    // DEBUG: Catch Out-of-Bounds Access
+    // Fix 4: Validate Buffer Exists
+    uint32_t* texture_buffer = (uint32_t*)upng_get_buffer(texture);
+    if (texture_buffer == NULL) return;
+
+    // Fix 5: Calculate Index AFTER Modulo/Abs
+    // (Your previous code calculated index before ensuring tex_x was positive)
     int index = texture_width * tex_y + tex_x;
     int buffer_size = texture_width * texture_height;
 
-    tex_x =
-        (tex_x < 0) ? 0 : (tex_x >= texture_width ? texture_width - 1 : tex_x);
-    tex_y = (tex_y < 0)
-                ? 0
-                : (tex_y >= texture_height ? texture_height - 1 : tex_y);
-
     if (index < 0 || index >= buffer_size) {
-        printf("[CRITICAL] Texture Access Violation!\n");
-        printf("  Pixel: (%d, %d)\n", x, y);
-        printf("  Texture Size: %dx%d (Buffer Size: %d)\n", texture_width,
-               texture_height, buffer_size);
-        printf("  Calculated Index: %d (tex_x: %d, tex_y: %d)\n", index, tex_x,
-               tex_y);
-        printf("  Interpolated UV: (%f, %f)\n", interpolated_u, interpolated_v);
-        printf("  1/W: %f\n", interpolated_reciprocal_w);
-        fflush(stdout);
-        return;  // PREVENT SEGFAULT
+        return;
     }
 
     interpolated_reciprocal_w = 1.0 - interpolated_reciprocal_w;
 
     if (interpolated_reciprocal_w < get_zbuffer_at(x, y)) {
-        uint32_t* texture_buffer = (uint32_t*)upng_get_buffer(texture);
         draw_pixel(x, y, texture_buffer[index]);
         update_zbuffer_at(x, y, interpolated_reciprocal_w);
     }

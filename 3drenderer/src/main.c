@@ -390,6 +390,14 @@ void process_graphics_pipeline_stages(mesh_t* mesh) {
                 projected_points[j].y += (get_window_height() / 2.0);
             }
 
+            // Fix 6: Discard garbage triangles
+            if (projected_points[0].x < -10000 ||
+                projected_points[0].x > 10000 ||
+                projected_points[0].y < -10000 ||
+                projected_points[0].y > 10000) {
+                continue;
+            }
+
             // calculate the shade intensity based on how aligned ois the
             // face normal and the light
             float light_intensity_factor =
