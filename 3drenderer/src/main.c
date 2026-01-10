@@ -31,9 +31,95 @@ float orbit_theta = 0.0;
 float orbit_phi = 0.0;
 bool is_mouse_down = false;
 
+typedef enum { PROJ_PERSPECTIVE, PROJ_ORTHOGRAPHIC } projection_type_t;
+projection_type_t projection_type = PROJ_PERSPECTIVE;
+float ortho_height = 6.0;
+const float ORTHO_CAMERA_DISTANCE = 20.0;
+
+void update_projection_matrix(void) {
+    float aspect_ratio = (float)get_window_width() / (float)get_window_height();
+
+    if (projection_type == PROJ_PERSPECTIVE) {
+        float fovy = 3.141592 / 3.0;  // 60 degrees
+        float znear = 0.1;
+        float zfar = 100.0;
+        float aspecty = (float)get_window_height() / (float)get_window_width();
+        proj_matrix = mat4_make_perspective(fovy, aspecty, znear, zfar);
+    } else {
+        float znear = 0.1;
+        float zfar = 100.0;
+
+        float top = ortho_height / 2.0;
+        float bottom = -top;
+
+        float right = top * aspect_ratio;
+        float left = -right;
+
+        proj_matrix =
+            mat4_make_orthographic(left, right, bottom, top, znear, zfar);
+    }
+}
+
+// Calculate the furthest point from the center to ensure the object fits
+// regardless of rotation.
+float get_mesh_radius(void) {
+    int num_vertices = array_length(mesh.vertices);
+    if (num_vertices == 0) return 2.0;  // Default fallback
+
+    float max_dist_sq = 0.0;
+
+    // Find vertex furthest from local origin (0,0,0)
+    for (int i = 0; i < num_vertices; i++) {
+        vec3_t v = mesh.vertices[i];
+
+        // Take mesh scale into account
+        float sx = v.x * mesh.scale.x;
+        float sy = v.y * mesh.scale.y;
+        float sz = v.z * mesh.scale.z;
+
+        float dist_sq = (sx * sx) + (sy * sy) + (sz * sz);
+        if (dist_sq > max_dist_sq) {
+            max_dist_sq = dist_sq;
+        }
+    }
+
+    return sqrt(max_dist_sq);
+}
+
+void fit_camera_to_mesh(void) {
+    float radius = get_mesh_radius();
+    float padding_factor = 1.2;  // 20% padding around the object
+
+    if (projection_type == PROJ_PERSPECTIVE) {
+        // Geometry: To fit a sphere of 'radius' in a FOV of 60 degrees:
+        // distance = radius / sin(fov / 2)
+        // sin(30 deg) = 0.5
+        // distance = radius / 0.5 = radius * 2.0
+        orbit_radius = (radius * 2.0) * padding_factor;
+
+        // Clamp to a safe minimum
+        if (orbit_radius < 2.0) orbit_radius = 2.0;
+
+    } else {
+        // For Ortho, the height just needs to be the diameter (radius * 2)
+        ortho_height = (radius * 2.0) * padding_factor;
+
+        // Clamp to safe minimum
+        if (ortho_height < 1.0) ortho_height = 1.0;
+    }
+
+    // Apply the new projection settings immediately
+    update_projection_matrix();
+}
+
 void setup(void) {
     set_render_method(RENDER_WIRE);
     set_cull_method(CULL_BACKFACE);
+
+    // Initialize defaults
+    projection_type = PROJ_PERSPECTIVE;
+    orbit_radius = 5.0;
+    fit_camera_to_mesh();
 
     // initialize perspectivep rojection matrix
     float aspecty = (float)get_window_height() / (float)get_window_width();
@@ -48,9 +134,9 @@ void setup(void) {
     // initialize frustum
     init_frustum_planes(fovx, fovy, znear, zfar);
 
-    load_obj_file_data("./assets/f117.obj");
+    load_obj_file_data("./assets/cube.obj");
 
-    load_png_texture_data("./assets/f117.png");
+    load_png_texture_data("./assets/cube.png");
 }
 
 void process_input(void) {
@@ -100,61 +186,54 @@ void process_input(void) {
                     set_cull_method(CULL_NONE);
                     break;
                 }
-                if (event.key.keysym.sym == SDLK_UP) {
-                    camera.position.y += 3.0 * delta_time;
-                    break;
-                }
+                // if (event.key.keysym.sym == SDLK_UP) {
+                //     camera.position.y += 3.0 * delta_time;
+                //     break;
+                // }
 
-                if (event.key.keysym.sym == SDLK_DOWN) {
-                    camera.position.y -= 3.0 * delta_time;
-                    break;
-                }
-                if (event.key.keysym.sym == SDLK_a) {
-                    camera.yaw += 1.0 * delta_time;
-                    break;
-                }
-                if (event.key.keysym.sym == SDLK_d) {
-                    camera.yaw -= 1.0 * delta_time;
-                    break;
-                }
-                if (event.key.keysym.sym == SDLK_w) {
-                    camera.forward_velocity =
-                        vec3_mul(camera.direction, 5.0 * delta_time);
-                    camera.position =
-                        vec3_add(camera.position, camera.forward_velocity);
-                    break;
-                }
-                if (event.key.keysym.sym == SDLK_s) {
-                    camera.forward_velocity =
-                        vec3_mul(camera.direction, 5.0 * delta_time);
-                    camera.position =
-                        vec3_sub(camera.position, camera.forward_velocity);
-                    break;
-                }
+                // if (event.key.keysym.sym == SDLK_DOWN) {
+                //     camera.position.y -= 3.0 * delta_time;
+                //     break;
+                // }
+                // if (event.key.keysym.sym == SDLK_a) {
+                //     camera.yaw += 1.0 * delta_time;
+                //     break;
+                // }
+                // if (event.key.keysym.sym == SDLK_d) {
+                //     camera.yaw -= 1.0 * delta_time;
+                //     break;
+                // }
+                // if (event.key.keysym.sym == SDLK_w) {
+                //     camera.forward_velocity =
+                //         vec3_mul(camera.direction, 5.0 * delta_time);
+                //     camera.position =
+                //         vec3_add(camera.position, camera.forward_velocity);
+                //     break;
+                // }
+                // if (event.key.keysym.sym == SDLK_s) {
+                //     camera.forward_velocity =
+                //         vec3_mul(camera.direction, 5.0 * delta_time);
+                //     camera.position =
+                //         vec3_sub(camera.position, camera.forward_velocity);
+                //     break;
+                // }
                 if (event.key.keysym.sym == SDLK_p) {
-                    float aspecty =
-                        (float)get_window_height() / (float)get_window_width();
-                    float fovy = 3.141592 / 3.0;
-                    float znear = 0.1;
-                    float zfar = 20.0;
-                    proj_matrix =
-                        mat4_make_perspective(fovy, aspecty, znear, zfar);
+                    // PERSPECTIVE
+                    projection_type = PROJ_PERSPECTIVE;
+                    orbit_radius = 5.0;
+                    fit_camera_to_mesh();
                     break;
                 }
                 if (event.key.keysym.sym == SDLK_o) {
-                    float znear = 0.1;
-                    float zfar = 50.0;
-                    float width = 6.0;
-                    float height = 6.0;
-                    float aspect =
-                        (float)get_window_width() / (float)get_window_height();
-                    float top = height / 2.0;
-                    float bottom = -3.0;
-                    float right = top * aspect;
-                    float left = -right;
-
-                    proj_matrix = mat4_make_orthographic(left, right, bottom,
-                                                         top, znear, zfar);
+                    // ORTHOGRAPHIC
+                    projection_type = PROJ_ORTHOGRAPHIC;
+                    orbit_radius = ORTHO_CAMERA_DISTANCE;
+                    ortho_height = 6.0;
+                    fit_camera_to_mesh();
+                    break;
+                }
+                if (event.key.keysym.sym == SDLK_f) {
+                    fit_camera_to_mesh();
                     break;
                 }
             // ORBIT CONTROLS
@@ -180,8 +259,15 @@ void process_input(void) {
                 }
                 break;
             case SDL_MOUSEWHEEL:
-                orbit_radius -= event.wheel.y * 0.5;
-                if (orbit_radius < 1.0) orbit_radius = 1.0;
+                if (projection_type == PROJ_PERSPECTIVE) {
+                    orbit_radius -= event.wheel.y * 0.5;
+                    if (orbit_radius < 1.0) orbit_radius = 1.0;
+                } else {
+                    // scale frustum
+                    ortho_height -= event.wheel.y * 0.5;
+                    if (ortho_height < 0.5) ortho_height = 0.5;
+                    update_projection_matrix();
+                }
                 break;
                 // ORBIT CONTROLS END
         }
@@ -233,6 +319,10 @@ void update(void) {
     // target = vec3_add(camera.position, camera.direction);
 
     // view_matrix = mat4_look_at(camera.position, target, up_direction);
+
+    if (projection_type == PROJ_ORTHOGRAPHIC) {
+        orbit_radius = ORTHO_CAMERA_DISTANCE;
+    }
 
     // THIS IS THE ORBIT CONTROLS
     camera.position.x = orbit_radius * cos(orbit_phi) * sin(orbit_theta);
