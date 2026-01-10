@@ -26,6 +26,11 @@ bool is_running = false;
 int previous_frame_time = 0;
 float delta_time = 0.0;
 
+float orbit_radius = 5.0;
+float orbit_theta = 0.0;
+float orbit_phi = 0.0;
+bool is_mouse_down = false;
+
 void setup(void) {
     set_render_method(RENDER_WIRE);
     set_cull_method(CULL_BACKFACE);
@@ -126,7 +131,59 @@ void process_input(void) {
                         vec3_sub(camera.position, camera.forward_velocity);
                     break;
                 }
+                if (event.key.keysym.sym == SDLK_p) {
+                    float aspecty =
+                        (float)get_window_height() / (float)get_window_width();
+                    float fovy = 3.141592 / 3.0;
+                    float znear = 0.1;
+                    float zfar = 20.0;
+                    proj_matrix =
+                        mat4_make_perspective(fovy, aspecty, znear, zfar);
+                    break;
+                }
+                if (event.key.keysym.sym == SDLK_o) {
+                    float znear = 0.1;
+                    float zfar = 50.0;
+                    float width = 6.0;
+                    float height = 6.0;
+                    float aspect =
+                        (float)get_window_width() / (float)get_window_height();
+                    float top = height / 2.0;
+                    float bottom = -3.0;
+                    float right = top * aspect;
+                    float left = -right;
+
+                    proj_matrix = mat4_make_orthographic(left, right, bottom,
+                                                         top, znear, zfar);
+                    break;
+                }
+            // ORBIT CONTROLS
+            case SDL_MOUSEBUTTONDOWN:
+                if (event.button.button == SDL_BUTTON_LEFT) {
+                    is_mouse_down = true;
+                }
                 break;
+            case SDL_MOUSEBUTTONUP:
+                if (event.button.button == SDL_BUTTON_LEFT) {
+                    is_mouse_down = false;
+                }
+                break;
+            case SDL_MOUSEMOTION:
+                if (is_mouse_down) {
+                    // update angles
+                    orbit_theta += event.motion.xrel * 0.01;
+                    orbit_phi += event.motion.yrel * 0.01;
+
+                    // clamp so as to not flip
+                    if (orbit_phi > 1.5) orbit_phi = 1.5;
+                    if (orbit_phi < -1.5) orbit_phi = -1.5;
+                }
+                break;
+            case SDL_MOUSEWHEEL:
+                orbit_radius -= event.wheel.y * 0.5;
+                if (orbit_radius < 1.0) orbit_radius = 1.0;
+                break;
+                // ORBIT CONTROLS END
         }
     }
 }
@@ -164,16 +221,32 @@ void update(void) {
     // mesh.rotation.z += 0.6 * delta_time;
     mesh.translation.z = 5.0;
 
-    // Create a view matrix
+    // THIS IS THE FIRST PERSON VIEW MATRIX
+    // // Create a view matrix
+    // vec3_t up_direction = {0, 1, 0};
+    // // TODO: find the target point
+    // vec3_t target = {0, 0, 1};
+    // mat4_t camera_yaw_rotation = mat4_make_rotation_y(camera.yaw);
+    // camera.direction = vec3_from_vec4(
+    //     mat4_mul_vec4(camera_yaw_rotation, vec4_from_vec3(target)));
+
+    // target = vec3_add(camera.position, camera.direction);
+
+    // view_matrix = mat4_look_at(camera.position, target, up_direction);
+
+    // THIS IS THE ORBIT CONTROLS
+    camera.position.x = orbit_radius * cos(orbit_phi) * sin(orbit_theta);
+    camera.position.y = orbit_radius * sin(orbit_phi);
+    camera.position.z = orbit_radius * cos(orbit_phi) * cos(orbit_theta);
+
+    // look at mesh
+    vec3_t target = {0, 0, 5.0};  // align with mesh.translation.z
+
+    // offset camera position by target
+    camera.position = vec3_add(camera.position, target);
     vec3_t up_direction = {0, 1, 0};
-    // TODO: find the target point
-    vec3_t target = {0, 0, 1};
-    mat4_t camera_yaw_rotation = mat4_make_rotation_y(camera.yaw);
-    camera.direction = vec3_from_vec4(
-        mat4_mul_vec4(camera_yaw_rotation, vec4_from_vec3(target)));
 
-    target = vec3_add(camera.position, camera.direction);
-
+    // create view matrix
     view_matrix = mat4_look_at(camera.position, target, up_direction);
 
     // create a scale, rotation and translation matrices that will be used to

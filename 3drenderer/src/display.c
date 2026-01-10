@@ -129,7 +129,7 @@ void draw_grid(uint32_t color, int cell_size) {
 }
 
 void draw_pixel(int x_pos, int y_pos, uint32_t color) {
-    if (x_pos < 0 || x_pos >= window_height || y_pos < 0 ||
+    if (x_pos < 0 || x_pos >= window_width || y_pos < 0 ||
         y_pos >= window_height)
         return;
     color_buffer[(window_width * y_pos) + x_pos] = color;

@@ -115,6 +115,23 @@ mat4_t mat4_make_perspective(float fov, float aspect, float znear, float zfar) {
     m.m[3][2] = 1.0;
     return m;
 }
+
+mat4_t mat4_make_orthographic(float left, float right, float bottom, float top,
+                              float znear, float zfar) {
+    mat4_t m = mat4_identity();
+
+    m.m[0][0] = 2.0 / (right - left);
+    m.m[1][1] = 2.0 / (top - bottom);
+
+    m.m[2][2] = 1.0 / (zfar - znear);
+    m.m[2][3] = -znear / (zfar - znear);
+
+    m.m[0][3] = -(right + left) / (right - left);
+    m.m[1][3] = -(top + bottom) / (top - bottom);
+
+    return m;
+}
+
 vec4_t mat4_mul_vec4_project(mat4_t mat_proj, vec4_t v) {
     // projection matrix multiplied with xyz1 vector
     vec4_t result = mat4_mul_vec4(mat_proj, v);
