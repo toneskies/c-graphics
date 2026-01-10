@@ -397,6 +397,13 @@ void update(void) {
                 // project the current vertex
                 projected_points[j] = mat4_mul_vec4_project(
                     proj_matrix, triangle_after_clipping.points[j]);
+
+                if (projection_type == PROJ_ORTHOGRAPHIC) {
+                    float z_normalized = projected_points[j].z;
+                    projected_points[j].w =
+                        1.0 / ((1.0 - z_normalized) + 0.0001);
+                }
+
                 // scale into viewport
                 projected_points[j].y *= -1;
 
