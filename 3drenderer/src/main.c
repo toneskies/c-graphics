@@ -38,25 +38,34 @@ const float ORTHO_CAMERA_DISTANCE = 20.0;
 
 void update_projection_matrix(void) {
     float aspect_ratio = (float)get_window_width() / (float)get_window_height();
+    float znear = 0.1;
+    float zfar =
+        100.0;  // Increased ZFar to prevent clipping the back of the mesh
 
     if (projection_type == PROJ_PERSPECTIVE) {
         float fovy = 3.141592 / 3.0;  // 60 degrees
-        float znear = 0.1;
-        float zfar = 100.0;
         float aspecty = (float)get_window_height() / (float)get_window_width();
         proj_matrix = mat4_make_perspective(fovy, aspecty, znear, zfar);
-    } else {
-        float znear = 0.1;
-        float zfar = 100.0;
 
+        // Update Frustum Planes for Perspective (Cone)
+        float fovx = atan(tan(fovy / 2) * aspect_ratio) * 2.0;
+        init_frustum_planes(fovx, fovy, znear, zfar);
+    } else {
         float top = ortho_height / 2.0;
         float bottom = -top;
-
         float right = top * aspect_ratio;
         float left = -right;
 
         proj_matrix =
             mat4_make_orthographic(left, right, bottom, top, znear, zfar);
+
+        // Update Frustum Planes for Ortho
+        // HACK: We use a very wide FOV (170 deg) for the frustum planes
+        // logic to effectively disable side-clipping, since the standard
+        // init_frustum_planes creates a pyramid. We only care about
+        // Near/Far clipping in Ortho here.
+        float wide_fov = 3.141592 * (170.0 / 180.0);
+        init_frustum_planes_ortho(left, right, top, bottom, znear, zfar);
     }
 }
 
@@ -119,24 +128,11 @@ void setup(void) {
     // Initialize defaults
     projection_type = PROJ_PERSPECTIVE;
     orbit_radius = 5.0;
-    fit_camera_to_mesh();
 
-    // initialize perspectivep rojection matrix
-    float aspecty = (float)get_window_height() / (float)get_window_width();
-    float aspectx = (float)get_window_width() / (float)get_window_height();
-    float fovy = 3.141592 / 3.0;  // the same as 180deg / 3 = 60deg
-    float fovx =
-        atan(tan(fovy / 2) * aspectx) * 2.0;  // the same as 180deg / 3 = 60deg
-    float znear = 0.1;
-    float zfar = 20.0;
-    proj_matrix = mat4_make_perspective(fovy, aspecty, znear, zfar);
+    load_obj_file_data("./assets/f117.obj");
+    load_png_texture_data("./assets/f117.png");
 
-    // initialize frustum
-    init_frustum_planes(fovx, fovy, znear, zfar);
-
-    load_obj_file_data("./assets/cube.obj");
-
-    load_png_texture_data("./assets/cube.png");
+    fit_camera_to_mesh();  // This will also call update_projection_matrix
 }
 
 void process_input(void) {
@@ -186,41 +182,9 @@ void process_input(void) {
                     set_cull_method(CULL_NONE);
                     break;
                 }
-                // if (event.key.keysym.sym == SDLK_UP) {
-                //     camera.position.y += 3.0 * delta_time;
-                //     break;
-                // }
-
-                // if (event.key.keysym.sym == SDLK_DOWN) {
-                //     camera.position.y -= 3.0 * delta_time;
-                //     break;
-                // }
-                // if (event.key.keysym.sym == SDLK_a) {
-                //     camera.yaw += 1.0 * delta_time;
-                //     break;
-                // }
-                // if (event.key.keysym.sym == SDLK_d) {
-                //     camera.yaw -= 1.0 * delta_time;
-                //     break;
-                // }
-                // if (event.key.keysym.sym == SDLK_w) {
-                //     camera.forward_velocity =
-                //         vec3_mul(camera.direction, 5.0 * delta_time);
-                //     camera.position =
-                //         vec3_add(camera.position, camera.forward_velocity);
-                //     break;
-                // }
-                // if (event.key.keysym.sym == SDLK_s) {
-                //     camera.forward_velocity =
-                //         vec3_mul(camera.direction, 5.0 * delta_time);
-                //     camera.position =
-                //         vec3_sub(camera.position, camera.forward_velocity);
-                //     break;
-                // }
                 if (event.key.keysym.sym == SDLK_p) {
                     // PERSPECTIVE
                     projection_type = PROJ_PERSPECTIVE;
-                    orbit_radius = 5.0;
                     fit_camera_to_mesh();
                     break;
                 }
@@ -228,7 +192,6 @@ void process_input(void) {
                     // ORTHOGRAPHIC
                     projection_type = PROJ_ORTHOGRAPHIC;
                     orbit_radius = ORTHO_CAMERA_DISTANCE;
-                    ortho_height = 6.0;
                     fit_camera_to_mesh();
                     break;
                 }
@@ -274,15 +237,6 @@ void process_input(void) {
     }
 }
 
-/// @brief Function that receives a 3D vector and returns a projected 2D point
-/// @param point
-/// @return orthographic projected point
-// vec2_t project(vec3_t point) {
-//     vec2_t projected_point = {.x = fov_factor * point.x / point.z,
-//                               .y = fov_factor * point.y / point.z};
-//     return projected_point;
-// }
-
 void update(void) {
     // Wait some time until the reach the target frame time in milliseconds
     int time_to_wait =
@@ -293,7 +247,8 @@ void update(void) {
         SDL_Delay(time_to_wait);
     }
 
-    // delta time factor converted to seconds to be used to update game objects
+    // delta time factor converted to seconds to be used to update game
+    // objects
     delta_time = (SDL_GetTicks() - previous_frame_time) / 1000.0;
 
     previous_frame_time = SDL_GetTicks();
@@ -301,24 +256,7 @@ void update(void) {
     // reset number of triangles to 0
     num_triangles_to_render = 0;
 
-    // Change the mesh scale/rotation values per animation frame
-    // mesh.rotation.x += 0.6 * delta_time;
-    // mesh.rotation.y += 0.6 * delta_time;
-    // mesh.rotation.z += 0.6 * delta_time;
     mesh.translation.z = 5.0;
-
-    // THIS IS THE FIRST PERSON VIEW MATRIX
-    // // Create a view matrix
-    // vec3_t up_direction = {0, 1, 0};
-    // // TODO: find the target point
-    // vec3_t target = {0, 0, 1};
-    // mat4_t camera_yaw_rotation = mat4_make_rotation_y(camera.yaw);
-    // camera.direction = vec3_from_vec4(
-    //     mat4_mul_vec4(camera_yaw_rotation, vec4_from_vec3(target)));
-
-    // target = vec3_add(camera.position, camera.direction);
-
-    // view_matrix = mat4_look_at(camera.position, target, up_direction);
 
     if (projection_type == PROJ_ORTHOGRAPHIC) {
         orbit_radius = ORTHO_CAMERA_DISTANCE;
@@ -339,8 +277,8 @@ void update(void) {
     // create view matrix
     view_matrix = mat4_look_at(camera.position, target, up_direction);
 
-    // create a scale, rotation and translation matrices that will be used to
-    // multiply the mesh vertices
+    // create a scale, rotation and translation matrices that will be used
+    // to multiply the mesh vertices
     mat4_t scale_matrix =
         mat4_make_scale(mesh.scale.x, mesh.scale.y, mesh.scale.z);
     mat4_t translation_matrix = mat4_make_translation(
@@ -367,11 +305,12 @@ void update(void) {
         for (int j = 0; j < 3; j++) {
             vec4_t transformed_vertex = vec4_from_vec3(face_vertices[j]);
 
-            // Create a world matrix combining scale, rotation and translation
-            // matrices
+            // Create a world matrix combining scale, rotation and
+            // translation matrices
             world_matrix = mat4_identity();
 
-            // Order matters: First scale, rotate, translate [S] * [R] * [T] * v
+            // Order matters: First scale, rotate, translate [S] * [R] * [T]
+            // * v
             world_matrix = mat4_mul_mat4(scale_matrix, world_matrix);
             world_matrix = mat4_mul_mat4(rotation_matrix_z, world_matrix);
             world_matrix = mat4_mul_mat4(rotation_matrix_y, world_matrix);
@@ -392,9 +331,9 @@ void update(void) {
         // TODO: Check backface culling
         // Note: We defined Clock-wise vertex numbering for our engine
         // 1. Find vectors B-A and C-A
-        vec3_t vector_a = vec3_from_vec4(transformed_vertices[0]); /*    A   */
-        vec3_t vector_b = vec3_from_vec4(transformed_vertices[1]); /*   / \  */
-        vec3_t vector_c = vec3_from_vec4(transformed_vertices[2]); /*  C---B */
+        vec3_t vector_a = vec3_from_vec4(transformed_vertices[0]); /* A   */
+        vec3_t vector_b = vec3_from_vec4(transformed_vertices[1]); /* / \  */
+        vec3_t vector_c = vec3_from_vec4(transformed_vertices[2]); /* C---B */
 
         // Get vector sub of B-A and C-A
         vec3_t vector_ab = vec3_sub(vector_b, vector_a);
@@ -403,11 +342,21 @@ void update(void) {
         // 2. Take their cross product and find the perpendicular normal N
         vec3_t normal = vec3_cross(vector_ab, vector_ac);
         vec3_normalize(&normal);
-        // 3. Find the camera ray vector by subtracting the camera position
-        // from point A
 
-        vec3_t origin = {0, 0, 0};
-        vec3_t camera_ray = vec3_sub(origin, vector_a);
+        // 3. Find the camera ray vector
+        vec3_t camera_ray;
+
+        if (projection_type == PROJ_PERSPECTIVE) {
+            // Perspective: Ray from origin (camera) to vertex
+            vec3_t origin = {0, 0, 0};
+            camera_ray = vec3_sub(origin, vector_a);
+        } else {
+            // Orthographic: Parallel rays looking down the Z axis
+            // Since View space conventionally looks down -Z, the vector TO
+            // camera is +Z
+            camera_ray = (vec3_t){0, 0, -1.0};
+        }
+
         // 4. Take the dot product between the normal N and the camera ray
         float dot_normal_camera = vec3_dot(normal, camera_ray);
         // 5. If this dot product is less than zero, then do not display the
@@ -426,7 +375,8 @@ void update(void) {
             vec3_from_vec4(transformed_vertices[2]), mesh_face.a_uv,
             mesh_face.b_uv, mesh_face.c_uv);
 
-        // clip the polygon and return a new polygon with potential new vertices
+        // clip the polygon and return a new polygon with potential new
+        // vertices
         clip_polygon(&polygon);
 
         // TODO: after clipping, break the polygon into triangles
@@ -452,13 +402,14 @@ void update(void) {
 
                 projected_points[j].x *= (get_window_width() / 2.0);
                 projected_points[j].y *= (get_window_height() / 2.0);
-                // translate the projected points to the middle of the screen
+                // translate the projected points to the middle of the
+                // screen
                 projected_points[j].x += (get_window_width() / 2.0);
                 projected_points[j].y += (get_window_height() / 2.0);
             }
 
-            // calculate the shade intensity based on how aligned ois the face
-            // normal and the light
+            // calculate the shade intensity based on how aligned ois the
+            // face normal and the light
             float light_intensity_factor =
                 -1 *
                 vec3_dot(normal,

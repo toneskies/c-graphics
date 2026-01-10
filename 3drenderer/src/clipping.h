@@ -28,6 +28,8 @@ typedef struct {
 } polygon_t;
 
 void init_frustum_planes(float fovx, float fovy, float z_near, float z_far);
+void init_frustum_planes_ortho(float left, float right, float top, float bottom,
+                               float z_near, float z_far);
 polygon_t create_polygon_from_triangle(vec3_t v0, vec3_t v1, vec3_t v2,
                                        tex2_t t0, tex2_t t1, tex2_t t2);
 void triangles_from_polygon(polygon_t* polygon, triangle_t triangles[],

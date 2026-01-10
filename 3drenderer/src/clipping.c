@@ -153,3 +153,29 @@ void init_frustum_planes(float fovx, float fovy, float z_near, float z_far) {
     frustum_planes[FAR_FRUSTUM_PLANE].normal.y = 0;
     frustum_planes[FAR_FRUSTUM_PLANE].normal.z = -1;
 }
+
+void init_frustum_planes_ortho(float left, float right, float top, float bottom,
+                               float z_near, float z_far) {
+    // Left Plane: Pointing Right (+X)
+    frustum_planes[LEFT_FRUSTUM_PLANE].point = vec3_new(left, 0, 0);
+    frustum_planes[LEFT_FRUSTUM_PLANE].normal = vec3_new(1, 0, 0);
+
+    // Right Plane: Pointing Left (-X)
+    frustum_planes[RIGHT_FRUSTUM_PLANE].point = vec3_new(right, 0, 0);
+    frustum_planes[RIGHT_FRUSTUM_PLANE].normal = vec3_new(-1, 0, 0);
+
+    // Top Plane: Pointing Down (-Y)
+    frustum_planes[TOP_FRUSTUM_PLANE].point = vec3_new(0, top, 0);
+    frustum_planes[TOP_FRUSTUM_PLANE].normal = vec3_new(0, -1, 0);
+
+    // Bottom Plane: Pointing Up (+Y)
+    frustum_planes[BOTTOM_FRUSTUM_PLANE].point = vec3_new(0, bottom, 0);
+    frustum_planes[BOTTOM_FRUSTUM_PLANE].normal = vec3_new(0, 1, 0);
+
+    // Near/Far are the same as perspective (standard Z clipping)
+    frustum_planes[NEAR_FRUSTUM_PLANE].point = vec3_new(0, 0, z_near);
+    frustum_planes[NEAR_FRUSTUM_PLANE].normal = vec3_new(0, 0, 1);
+
+    frustum_planes[FAR_FRUSTUM_PLANE].point = vec3_new(0, 0, z_far);
+    frustum_planes[FAR_FRUSTUM_PLANE].normal = vec3_new(0, 0, -1);
+}
