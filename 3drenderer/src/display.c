@@ -47,9 +47,11 @@ bool initialize_window(void) {
     // Use SDL to query what is the fullscreen max. width and height
     SDL_DisplayMode display_mode;
     SDL_GetCurrentDisplayMode(0, &display_mode);
+    int fullscreen_width = display_mode.w;
+    int fullscreen_height = display_mode.h;
 
-    window_width = 800;   // display_mode.w;
-    window_height = 600;  // display_mode.h;
+    // window_width = fullscreen_width / 3;
+    // window_height = fullscreen_height / 3;
 
     // Created a SDL Window
     window =
@@ -146,7 +148,8 @@ void draw_rect(int x_pos, int y_pos, int width, int height, uint32_t color) {
 }
 
 // @brief function to draw a line using the DDA algorithm
-void draw_line(int x0, int y0, int x1, int y1, uint32_t color) {
+void draw_line(int x0, int y0, float z0, float w0, int x1, int y1, float z1,
+               float w1, uint32_t color) {
     int delta_x = (x1 - x0);
     int delta_y = (y1 - y0);
 
@@ -159,10 +162,33 @@ void draw_line(int x0, int y0, int x1, int y1, uint32_t color) {
     float current_x = x0;
     float current_y = y0;
 
+    // [NEW] Depth Interpolation Logic
+    // We interpolate 1/w to stay linear in screen space
+    float inv_w0 = 1.0 / w0;
+    float inv_w1 = 1.0 / w1;
+    float inv_w_inc = (inv_w1 - inv_w0) / (float)longest_side_length;
+    float current_inv_w = inv_w0;
+
     for (int i = 0; i <= longest_side_length; i++) {
-        draw_pixel(round(current_x), round(current_y), color);
+        int x = round(current_x);
+        int y = round(current_y);
+
+        if (x >= 0 && x < window_width && y >= 0 && y < window_height) {
+            // Match the Z-buffer logic from triangle.c
+            // Logic: depth = 1.0 - (1/w)
+            // Smaller 'depth' is closer to camera.
+            float depth = 1.0 - current_inv_w - 0.0001f;
+
+            // Check if this pixel is closer than what's in the Z-buffer
+            if (depth <= get_zbuffer_at(x, y)) {
+                draw_pixel(x, y, color);
+                update_zbuffer_at(x, y, depth);
+            }
+        }
+
         current_x += x_inc;
         current_y += y_inc;
+        current_inv_w += inv_w_inc;
     }
 }
 

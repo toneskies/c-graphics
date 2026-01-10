@@ -3,11 +3,12 @@
 #include "display.h"
 #include "swap.h"
 
-void draw_triangle(int x0, int y0, int x1, int y1, int x2, int y2,
+void draw_triangle(int x0, int y0, float z0, float w0, int x1, int y1, float z1,
+                   float w1, int x2, int y2, float z2, float w2,
                    uint32_t color) {
-    draw_line(x0, y0, x1, y1, color);
-    draw_line(x1, y1, x2, y2, color);
-    draw_line(x2, y2, x0, y0, color);
+    draw_line(x0, y0, z0, w0, x1, y1, z1, w1, color);
+    draw_line(x1, y1, z1, w1, x2, y2, z2, w2, color);
+    draw_line(x2, y2, z2, w2, x0, y0, z0, w0, color);
 }
 
 void draw_filled_triangle(int x0, int y0, float z0, float w0, int x1, int y1,
@@ -146,7 +147,7 @@ vec3_t barycentric_weights(vec2_t a, vec2_t b, vec2_t c, vec2_t p) {
 }
 
 // function to draw textured pixel at position x and y using interpolation
-void draw_texel(int x, int y, uint32_t* texture, vec4_t point_a, vec4_t point_b,
+void draw_texel(int x, int y, upng_t* texture, vec4_t point_a, vec4_t point_b,
                 vec4_t point_c, tex2_t a_uv, tex2_t b_uv, tex2_t c_uv
 
 ) {
@@ -181,6 +182,10 @@ void draw_texel(int x, int y, uint32_t* texture, vec4_t point_a, vec4_t point_b,
     interpolated_u /= interpolated_reciprocal_w;
     interpolated_v /= interpolated_reciprocal_w;
 
+    // get mesh texture width and height
+    int texture_width = upng_get_width(texture);
+    int texture_height = upng_get_height(texture);
+
     // map the UV coordinate to the full texture width and height
     int tex_x = abs((int)(interpolated_u * texture_width)) % texture_width;
     int tex_y = abs((int)(interpolated_v * texture_height)) % texture_height;
@@ -189,11 +194,15 @@ void draw_texel(int x, int y, uint32_t* texture, vec4_t point_a, vec4_t point_b,
     // values
     interpolated_reciprocal_w = 1 - interpolated_reciprocal_w;
 
-    // only draw pixel if the depth value is less than the one previously stored
+    // only draw pixel if the depth value is less than the one previously
+    // stored
     // in z_buffer
     if (interpolated_reciprocal_w < get_zbuffer_at(x, y)) {
+        // get the buffer of colors from texture
+        uint32_t* texture_buffer = upng_get_buffer(texture);
+
         // traverse texture source and fetch color for that pixel
-        draw_pixel(x, y, texture[texture_width * tex_y + tex_x]);
+        draw_pixel(x, y, texture_buffer[texture_width * tex_y + tex_x]);
 
         // update the z buffer value with the 1/w of this current pixel
         update_zbuffer_at(x, y, interpolated_reciprocal_w);
@@ -204,7 +213,7 @@ void draw_texel(int x, int y, uint32_t* texture, vec4_t point_a, vec4_t point_b,
 void draw_textured_triangle(int x0, int y0, float z0, float w0, float u0,
                             float v0, int x1, int y1, float z1, float w1,
                             float u1, float v1, int x2, int y2, float z2,
-                            float w2, float u2, float v2, uint32_t* texture) {
+                            float w2, float u2, float v2, upng_t* texture) {
     // TODO:
     // Loop all the pixels of the triangle to render them based on the color
     // that comes from the texture.
