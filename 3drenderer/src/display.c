@@ -2,15 +2,41 @@
 
 #include <stdio.h>
 
-SDL_Window* window = NULL;
-SDL_Renderer* renderer = NULL;
+static int render_method = 0;
+static int cull_method = 0;
 
-uint32_t* color_buffer = NULL;
-float* z_buffer = NULL;
+static SDL_Window* window = NULL;
+static SDL_Renderer* renderer = NULL;
 
-SDL_Texture* color_buffer_texture = NULL;
-int window_height = 600;
-int window_width = 800;
+static uint32_t* color_buffer = NULL;
+static float* z_buffer = NULL;
+
+static SDL_Texture* color_buffer_texture = NULL;
+static int window_height = 600;
+static int window_width = 800;
+
+int get_window_height() { return window_height; }
+int get_window_width() { return window_width; }
+void set_render_method(int method) { render_method = method; };
+void set_cull_method(int method) { cull_method = method; };
+bool is_cull_backface(void) { return cull_method == CULL_BACKFACE; };
+bool should_render_filled_triangles(void) {
+    return (render_method == RENDER_FILL_TRIANGLE ||
+            render_method == RENDER_FILL_TRIANGLE_WIRE);
+}
+bool should_render_textured_triangles(void) {
+    return (render_method == RENDER_TEXTURED ||
+            render_method == RENDER_TEXTURED_WIRE);
+}
+bool should_render_wireframe(void) {
+    return (render_method == RENDER_WIRE ||
+            render_method == RENDER_WIRE_VERTEX ||
+            render_method == RENDER_FILL_TRIANGLE_WIRE ||
+            render_method == RENDER_TEXTURED_WIRE);
+}
+bool should_render_wire_vertex(void) {
+    return render_method == RENDER_WIRE_VERTEX;
+}
 
 bool initialize_window(void) {
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
@@ -44,6 +70,16 @@ bool initialize_window(void) {
         return false;
     }
 
+    // allocate the required memory in bytes to hold the color buffer
+    color_buffer =
+        (uint32_t*)malloc(window_width * window_height * sizeof(uint32_t));
+    z_buffer = (float*)malloc(window_width * window_height * sizeof(float));
+
+    // create a buffer texture for SDL that is used to hold the color buffer
+    color_buffer_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32,
+                                             SDL_TEXTUREACCESS_STREAMING,
+                                             window_width, window_height);
+
     return true;
 }
 
@@ -51,6 +87,20 @@ void render_color_buffer() {
     SDL_UpdateTexture(color_buffer_texture, NULL, color_buffer,
                       (int)(window_width * sizeof(uint32_t)));
     SDL_RenderCopy(renderer, color_buffer_texture, NULL, NULL);
+    SDL_RenderPresent(renderer);
+}
+
+float get_zbuffer_at(int x, int y) {
+    if (x < 0 || x >= window_width || y < 0 || y >= window_height) {
+        return 1.0;
+    }
+    return z_buffer[(window_width * y + x)];
+}
+void update_zbuffer_at(int x, int y, float value) {
+    if (x < 0 || x >= window_width || y < 0 || y >= window_height) {
+        return;
+    }
+    z_buffer[(window_width * y) + x] = value;
 }
 
 void clear_color_buffer(uint32_t color) {
@@ -79,9 +129,10 @@ void draw_grid(uint32_t color, int cell_size) {
 }
 
 void draw_pixel(int x_pos, int y_pos, uint32_t color) {
-    if (x_pos >= 0 && x_pos < window_width && y_pos >= 0 &&
-        y_pos < window_height)
-        color_buffer[(window_width * y_pos) + x_pos] = color;
+    if (x_pos < 0 || x_pos >= window_height || y_pos < 0 ||
+        y_pos >= window_height)
+        return;
+    color_buffer[(window_width * y_pos) + x_pos] = color;
 }
 
 void draw_rect(int x_pos, int y_pos, int width, int height, uint32_t color) {
@@ -116,6 +167,8 @@ void draw_line(int x0, int y0, int x1, int y1, uint32_t color) {
 }
 
 void destroy_window(void) {
+    free(color_buffer);
+    free(z_buffer);
     SDL_DestroyTexture(color_buffer_texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

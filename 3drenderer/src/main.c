@@ -27,34 +27,17 @@ int previous_frame_time = 0;
 float delta_time = 0.0;
 
 void setup(void) {
-    render_method = RENDER_WIRE;
-    cull_method = CULL_BACKFACE;
-
-    // allocate the required memory in bytes to hold the color buffer
-    color_buffer =
-        (uint32_t*)malloc(window_width * window_height * sizeof(uint32_t));
-    z_buffer = (float*)malloc(window_width * window_height * sizeof(float));
-
-    if (!color_buffer) {
-        printf("Bruh your color buffer is null...\n");
-    } else {
-        /* success, continue with your code.*/
-        printf("Your color buffer is aight.\n");
-    }
-
-    // create a buffer texture for SDL that is used to hold the color buffer
-    color_buffer_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32,
-                                             SDL_TEXTUREACCESS_STREAMING,
-                                             window_width, window_height);
+    set_render_method(RENDER_WIRE);
+    set_cull_method(CULL_BACKFACE);
 
     // initialize perspectivep rojection matrix
-    float aspectx = (float)window_width / (float)window_height;
-    float aspecty = (float)window_height / (float)window_width;
-    float fovy = M_PI / 3.0;  // the same as 180deg / 3 = 60deg
+    float aspecty = (float)get_window_height() / (float)get_window_width();
+    float aspectx = (float)get_window_width() / (float)get_window_height();
+    float fovy = 3.141592 / 3.0;  // the same as 180deg / 3 = 60deg
     float fovx =
         atan(tan(fovy / 2) * aspectx) * 2.0;  // the same as 180deg / 3 = 60deg
     float znear = 0.1;
-    float zfar = 100.0;
+    float zfar = 20.0;
     proj_matrix = mat4_make_perspective(fovy, aspecty, znear, zfar);
 
     // initialize frustum
@@ -67,45 +50,84 @@ void setup(void) {
 
 void process_input(void) {
     SDL_Event event;
-    SDL_PollEvent(&event);
+    while (SDL_PollEvent(&event)) {
+        switch (event.type) {
+            case SDL_QUIT:
+                is_running = false;
+                break;
+            case SDL_KEYDOWN:
+                if (event.key.keysym.sym == SDLK_ESCAPE) {
+                    is_running = false;
+                    break;
+                }
+                if (event.key.keysym.sym == SDLK_1) {
+                    set_render_method(RENDER_WIRE_VERTEX);
+                    break;
+                }
+                if (event.key.keysym.sym == SDLK_2) {
+                    set_render_method(RENDER_WIRE);
+                    break;
+                }
+                if (event.key.keysym.sym == SDLK_3) {
+                    set_render_method(RENDER_FILL_TRIANGLE);
+                    break;
+                }
+                if (event.key.keysym.sym == SDLK_4) {
+                    set_render_method(RENDER_FILL_TRIANGLE_WIRE);
+                    break;
+                }
 
-    switch (event.type) {
-        case SDL_QUIT:
-            is_running = false;
-            break;
-        case SDL_KEYDOWN:
-            if (event.key.keysym.sym == SDLK_ESCAPE) is_running = false;
-            if (event.key.keysym.sym == SDLK_1)
-                render_method = RENDER_WIRE_VERTEX;
-            if (event.key.keysym.sym == SDLK_2) render_method = RENDER_WIRE;
-            if (event.key.keysym.sym == SDLK_3)
-                render_method = RENDER_FILL_TRIANGLE;
-            if (event.key.keysym.sym == SDLK_4)
-                render_method = RENDER_FILL_TRIANGLE_WIRE;
-            if (event.key.keysym.sym == SDLK_5) render_method = RENDER_TEXTURED;
-            if (event.key.keysym.sym == SDLK_6)
-                render_method = RENDER_TEXTURED_WIRE;
-            if (event.key.keysym.sym == SDLK_c) cull_method = CULL_BACKFACE;
-            if (event.key.keysym.sym == SDLK_x) cull_method = CULL_NONE;
-            if (event.key.keysym.sym == SDLK_UP)
-                camera.position.y += 3.0 * delta_time;
-            if (event.key.keysym.sym == SDLK_DOWN)
-                camera.position.y -= 3.0 * delta_time;
-            if (event.key.keysym.sym == SDLK_a) camera.yaw += 1.0 * delta_time;
-            if (event.key.keysym.sym == SDLK_d) camera.yaw -= 1.0 * delta_time;
-            if (event.key.keysym.sym == SDLK_w) {
-                camera.forward_velocity =
-                    vec3_mul(camera.direction, 5.0 * delta_time);
-                camera.position =
-                    vec3_add(camera.position, camera.forward_velocity);
-            }
-            if (event.key.keysym.sym == SDLK_s) {
-                camera.forward_velocity =
-                    vec3_mul(camera.direction, 5.0 * delta_time);
-                camera.position =
-                    vec3_sub(camera.position, camera.forward_velocity);
-            }
-            break;
+                if (event.key.keysym.sym == SDLK_5) {
+                    set_render_method(RENDER_TEXTURED);
+                    break;
+                }
+
+                if (event.key.keysym.sym == SDLK_6) {
+                    set_render_method(RENDER_TEXTURED_WIRE);
+                    break;
+                }
+
+                if (event.key.keysym.sym == SDLK_c) {
+                    set_cull_method(CULL_BACKFACE);
+                    break;
+                }
+                if (event.key.keysym.sym == SDLK_x) {
+                    set_cull_method(CULL_NONE);
+                    break;
+                }
+                if (event.key.keysym.sym == SDLK_UP) {
+                    camera.position.y += 3.0 * delta_time;
+                    break;
+                }
+
+                if (event.key.keysym.sym == SDLK_DOWN) {
+                    camera.position.y -= 3.0 * delta_time;
+                    break;
+                }
+                if (event.key.keysym.sym == SDLK_a) {
+                    camera.yaw += 1.0 * delta_time;
+                    break;
+                }
+                if (event.key.keysym.sym == SDLK_d) {
+                    camera.yaw -= 1.0 * delta_time;
+                    break;
+                }
+                if (event.key.keysym.sym == SDLK_w) {
+                    camera.forward_velocity =
+                        vec3_mul(camera.direction, 5.0 * delta_time);
+                    camera.position =
+                        vec3_add(camera.position, camera.forward_velocity);
+                    break;
+                }
+                if (event.key.keysym.sym == SDLK_s) {
+                    camera.forward_velocity =
+                        vec3_mul(camera.direction, 5.0 * delta_time);
+                    camera.position =
+                        vec3_sub(camera.position, camera.forward_velocity);
+                    break;
+                }
+                break;
+        }
     }
 }
 
@@ -227,7 +249,7 @@ void update(void) {
         float dot_normal_camera = vec3_dot(normal, camera_ray);
         // 5. If this dot product is less than zero, then do not display the
         // face
-        if (cull_method == CULL_BACKFACE) {
+        if (is_cull_backface()) {
             if (dot_normal_camera < 0) {
                 continue;
             }
@@ -265,11 +287,11 @@ void update(void) {
                 // scale into viewport
                 projected_points[j].y *= -1;
 
-                projected_points[j].x *= (window_width / 2.0);
-                projected_points[j].y *= (window_height / 2.0);
+                projected_points[j].x *= (get_window_width() / 2.0);
+                projected_points[j].y *= (get_window_height() / 2.0);
                 // translate the projected points to the middle of the screen
-                projected_points[j].x += (window_width / 2.0);
-                projected_points[j].y += (window_height / 2.0);
+                projected_points[j].x += (get_window_width() / 2.0);
+                projected_points[j].y += (get_window_height() / 2.0);
             }
 
             // calculate the shade intensity based on how aligned ois the face
@@ -317,15 +339,16 @@ void update(void) {
 }
 
 void render(void) {
-    // exercise 1
+    clear_color_buffer(0xFF000000);
+    clear_z_buffer();
+
     draw_grid(0xFF333333, 10);
 
     // Loop all projected triangles and render them
     for (int i = 0; i < num_triangles_to_render; i++) {
         triangle_t triangle = triangles_to_render[i];
 
-        if (render_method == RENDER_FILL_TRIANGLE ||
-            render_method == RENDER_FILL_TRIANGLE_WIRE) {
+        if (should_render_filled_triangles()) {
             draw_filled_triangle(triangle.points[0].x, triangle.points[0].y,
                                  triangle.points[0].z, triangle.points[0].w,
                                  triangle.points[1].x, triangle.points[1].y,
@@ -336,8 +359,7 @@ void render(void) {
         }
 
         // Draw textured triangle
-        if (render_method == RENDER_TEXTURED ||
-            render_method == RENDER_TEXTURED_WIRE) {
+        if (should_render_textured_triangles()) {
             draw_textured_triangle(
                 triangle.points[0].x, triangle.points[0].y,
                 triangle.points[0].z, triangle.points[0].w,
@@ -350,17 +372,14 @@ void render(void) {
                 triangle.texcoords[2].u, triangle.texcoords[2].v, mesh_texture);
         }
 
-        if (render_method == RENDER_WIRE ||
-            render_method == RENDER_WIRE_VERTEX ||
-            render_method == RENDER_FILL_TRIANGLE_WIRE ||
-            render_method == RENDER_TEXTURED_WIRE) {
+        if (should_render_wireframe()) {
             draw_triangle(triangle.points[0].x, triangle.points[0].y,
                           triangle.points[1].x, triangle.points[1].y,
                           triangle.points[2].x, triangle.points[2].y,
                           0xFFFFFFFF);
         }
 
-        if (render_method == RENDER_WIRE_VERTEX) {
+        if (should_render_wire_vertex()) {
             draw_rect(triangle.points[0].x - 3, triangle.points[0].y - 3, 6, 6,
                       0xFFFF0000);
             draw_rect(triangle.points[1].x - 3, triangle.points[1].y - 3, 6, 6,
@@ -371,18 +390,11 @@ void render(void) {
     }
 
     render_color_buffer();
-
-    clear_color_buffer(0xFF000000);
-    clear_z_buffer();
-
-    SDL_RenderPresent(renderer);
 }
 
 /// @brief free memory that was dynamically allocated by the program
 /// @param  none
 void free_resources(void) {
-    free(color_buffer);
-    free(z_buffer);
     upng_free(png_texture);
     array_free(mesh.faces);
     array_free(mesh.vertices);
