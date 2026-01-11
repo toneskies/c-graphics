@@ -152,8 +152,32 @@ vec3_t barycentric_weights(vec2_t a, vec2_t b, vec2_t c, vec2_t p) {
     return weights;
 }
 
-void draw_texel(int x, int y, upng_t* texture, vec4_t point_a, vec4_t point_b,
-                vec4_t point_c, tex2_t a_uv, tex2_t b_uv, tex2_t c_uv) {
+// Helper function to blend texture color with light intensity
+uint32_t modulate_color(uint32_t color_a, uint32_t color_b) {
+    // Extract channels from Color A (Texture)
+    uint8_t a_a = (color_a >> 24) & 0xFF;
+    uint8_t r_a = (color_a >> 16) & 0xFF;
+    uint8_t g_a = (color_a >> 8) & 0xFF;
+    uint8_t b_a = color_a & 0xFF;
+
+    // Extract channels from Color B (Light/Shading)
+    // We treat the "Shading" as a percentage (0 to 255) for each channel
+    uint8_t r_b = (color_b >> 16) & 0xFF;
+    uint8_t g_b = (color_b >> 8) & 0xFF;
+    uint8_t b_b = color_b & 0xFF;
+
+    // Multiply channels and divide by 255 to keep range [0-255]
+    uint8_t final_r = (r_a * r_b) / 255;
+    uint8_t final_g = (g_a * g_b) / 255;
+    uint8_t final_b = (b_a * b_b) / 255;
+
+    return (a_a << 24) | (final_r << 16) | (final_g << 8) | final_b;
+}
+
+// 1. Update draw_texel to accept shading color
+void draw_texel(int x, int y, upng_t* texture, uint32_t shading_color,
+                vec4_t point_a, vec4_t point_b, vec4_t point_c, tex2_t a_uv,
+                tex2_t b_uv, tex2_t c_uv) {
     if (texture == NULL) return;
 
     vec2_t p = {x, y};
@@ -194,54 +218,46 @@ void draw_texel(int x, int y, upng_t* texture, vec4_t point_a, vec4_t point_b,
     int tex_x = abs((int)(interpolated_u * texture_width)) % texture_width;
     int tex_y = abs((int)(interpolated_v * texture_height)) % texture_height;
 
-    // --- FIX START ---
-    // 1. Get the raw buffer as bytes (generic void*)
+    // Safety checks
     void* raw_buffer = (void*)upng_get_buffer(texture);
     if (raw_buffer == NULL) return;
 
-    // 2. Check the format (RGB vs RGBA)
     upng_format format = upng_get_format(texture);
-    uint32_t color = 0xFFFFFFFF;
+    uint32_t texture_color = 0xFFFFFFFF;
     int index = texture_width * tex_y + tex_x;
 
+    // RGB / RGBA Handling
     if (format == UPNG_RGBA8) {
-        // 32-bit read (4 bytes per pixel)
         uint32_t* buffer_32 = (uint32_t*)raw_buffer;
-        color = buffer_32[index];
+        texture_color = buffer_32[index];
     } else if (format == UPNG_RGB8) {
-        // 24-bit read (3 bytes per pixel)
         unsigned char* buffer_8 = (unsigned char*)raw_buffer;
         int byte_offset = index * 3;
-
         uint8_t r = buffer_8[byte_offset];
         uint8_t g = buffer_8[byte_offset + 1];
         uint8_t b = buffer_8[byte_offset + 2];
-
-        // Reconstruct 32-bit ARGB color (Alpha = 0xFF)
-        color = (0xFF << 24) | (r << 16) | (g << 8) | b;
+        texture_color = (0xFF << 24) | (r << 16) | (g << 8) | b;
     } else {
-        // Unsupported format, skip
         return;
     }
-    // --- FIX END ---
+
+    // Apply Lighting!
+    uint32_t final_color = modulate_color(texture_color, shading_color);
 
     interpolated_reciprocal_w = 1.0 - interpolated_reciprocal_w;
 
     if (interpolated_reciprocal_w < get_zbuffer_at(x, y)) {
-        draw_pixel(x, y, color);
+        draw_pixel(x, y, final_color);
         update_zbuffer_at(x, y, interpolated_reciprocal_w);
     }
 }
 
-// Draw textured triangle with the flat-top/flat-bottom method
+// 2. Update draw_textured_triangle to accept `color`
 void draw_textured_triangle(int x0, int y0, float z0, float w0, float u0,
                             float v0, int x1, int y1, float z1, float w1,
                             float u1, float v1, int x2, int y2, float z2,
-                            float w2, float u2, float v2, upng_t* texture) {
-    // TODO:
-    // Loop all the pixels of the triangle to render them based on the color
-    // that comes from the texture.
-    // Step 1: Step vertices by y-coordinate ascending (y0 < y1 < y2)
+                            float w2, float u2, float v2, upng_t* texture,
+                            uint32_t color) {
     if (y0 > y1) {
         int_swap(&y0, &y1);
         int_swap(&x0, &x1);
@@ -267,13 +283,10 @@ void draw_textured_triangle(int x0, int y0, float z0, float w0, float u0,
         float_swap(&w0, &w1);
     }
 
-    // Flip the V component to account for the UV-Coordinates (V grows
-    // downwards)
     v0 = 1.0 - v0;
     v1 = 1.0 - v1;
     v2 = 1.0 - v2;
 
-    // create vector points and texture coords after we sort vertices
     vec4_t point_a = {x0, y0, z0, w0};
     vec4_t point_b = {x1, y1, z1, w1};
     vec4_t point_c = {x2, y2, z2, w2};
@@ -281,7 +294,6 @@ void draw_textured_triangle(int x0, int y0, float z0, float w0, float u0,
     tex2_t b_uv = {u1, v1};
     tex2_t c_uv = {u2, v2};
 
-    // Render the upper part of the triangle (flat-bottom)
     float inv_slope_1 = 0;
     float inv_slope_2 = 0;
 
@@ -293,20 +305,16 @@ void draw_textured_triangle(int x0, int y0, float z0, float w0, float u0,
             int x_start = x1 + (y - y1) * inv_slope_1;
             int x_end = x0 + (y - y0) * inv_slope_2;
 
-            if (x_end < x_start) {
-                int_swap(&x_start, &x_end);
-            }
+            if (x_end < x_start) int_swap(&x_start, &x_end);
 
             for (int x = x_start; x < x_end; x++) {
-                // TODO: draw our pixel with the color that comes from the
-                // texture
-                draw_texel(x, y, texture, point_a, point_b, point_c, a_uv, b_uv,
-                           c_uv);
+                // Pass the color (lighting) to draw_texel
+                draw_texel(x, y, texture, color, point_a, point_b, point_c,
+                           a_uv, b_uv, c_uv);
             }
         }
     }
 
-    // Render the lower part of the triangle (flat-top)
     inv_slope_1 = 0;
     inv_slope_2 = 0;
 
@@ -318,15 +326,12 @@ void draw_textured_triangle(int x0, int y0, float z0, float w0, float u0,
             int x_start = x1 + (y - y1) * inv_slope_1;
             int x_end = x0 + (y - y0) * inv_slope_2;
 
-            if (x_end < x_start) {
-                int_swap(&x_start, &x_end);
-            }
+            if (x_end < x_start) int_swap(&x_start, &x_end);
 
             for (int x = x_start; x < x_end; x++) {
-                // TODO: draw our pixel with the color that comes from the
-                // texture
-                draw_texel(x, y, texture, point_a, point_b, point_c, a_uv, b_uv,
-                           c_uv);
+                // Pass the color (lighting) to draw_texel
+                draw_texel(x, y, texture, color, point_a, point_b, point_c,
+                           a_uv, b_uv, c_uv);
             }
         }
     }

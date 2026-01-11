@@ -34,14 +34,17 @@ void draw_filled_triangle(int x0, int y0, float z0, float w0, int x1, int y1,
                           float z1, float w1, int x2, int y2, float z2,
                           float w2, uint32_t color);
 
-void draw_texel(int x, int y, upng_t* texture, vec4_t point_a, vec4_t point_b,
-                vec4_t point_c, tex2_t a_uv, tex2_t b_uv, tex2_t c_uv);
+void draw_texel(int x, int y, upng_t* texture, uint32_t shading_color,
+                vec4_t point_a, vec4_t point_b, vec4_t point_c, tex2_t a_uv,
+                tex2_t b_uv, tex2_t c_uv);
 
 void draw_textured_triangle(int x0, int y0, float z0, float w0, float u0,
                             float v0, int x1, int y1, float z1, float w1,
                             float u1, float v1, int x2, int y2, float z2,
-                            float w2, float u2, float v2, upng_t* texture);
+                            float w2, float u2, float v2, upng_t* texture,
+                            uint32_t color);
 
 vec3_t get_triangle_normal(vec4_t vertices[3]);
+uint32_t modulate_color(uint32_t color_a, uint32_t color_b);
 
 #endif
